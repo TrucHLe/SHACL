@@ -1,0 +1,35 @@
+# User-defined SHACL Shape Graphs
+
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix vs: <http://www.w3.org/2003/06/sw-vocab-status/ns#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix schema: <http://schema.org/> .
+
+@prefix ex: <http://www.example.org/ex#> .
+
+ex:
+  a owl:Ontology ;
+  rdfs:comment "This is an example ontology." ;
+.
+
+ex:OrganizationShape
+  a sh:Shape ;
+  sh:targetNode ex:Organization ;
+  sh:property [
+    sh:predicate schema:logo ;
+    sh:class schema:ImageObject ;
+  ] ;
+  sh:property [
+    sh:predicate schema:telephone ;
+    sh:datatype xsd:string ;
+    sh:minCount 1 ;
+    sh:maxCount 1 ;
+  ] ;
+  sh:property [
+    sh:predicate schema:url ;
+    sh:nodeKind sh:IRI ;
+  ]
+.

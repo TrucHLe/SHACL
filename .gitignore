@@ -1,0 +1,6 @@
+.DS_STORE
+.ensime*
+target/*
+project/*
+core/target/*
+web/target*
