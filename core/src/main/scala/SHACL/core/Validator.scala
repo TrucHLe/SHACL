@@ -5,6 +5,7 @@ import org.eclipse.rdf4j.model.Model
 import scala.collection.JavaConverters._
 
 class Validator(data: Model, shape: Model) {
+
 }
 
 object Validator {
@@ -68,9 +69,15 @@ object Validator {
   }
 
   def main(args: Array[String]): Unit = {
-    val shSchemaExtractor = ShSchemaExtractor()
-    shSchemaExtractor.shape.filter(null, null, null).asScala.toList.foreach(println)
-//    process(data, shape)
+    val shapeParser = new ShapeParser()
+    val shSchema = shapeParser.extractShSchema
+    
+    // shapeParser.shape.filter(null, null, null).asScala.toList.foreach(println)
+  
+    println(shSchema)
+  
+//    shSchema.shapes.foreach(println)
+    // process(data, shape)
   }
 }
 

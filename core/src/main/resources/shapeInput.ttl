@@ -18,15 +18,23 @@ ex:
 ex:OrganizationShape
   a sh:Shape ;
   sh:targetNode ex:Organization ;
+#  sh:property [
+#    sh:path ex:bamboo ;
+#    sh:path (ex:knows ex:email) ;
+#    sh:path [ sh:inversePath ex:parent ];
+#    sh:path ( rdf:type [ sh:oneOrMorePath rdfs:subClassOf ] ) ;
+#    sh:path [ sh:alternativePath ( ex:father ex:mother  ) ] ;
+#  ] ;
   sh:property [
     sh:predicate schema:logo ;
+#    sh:predicate schema:thing ;
     sh:class schema:ImageObject ;
   ] ;
   sh:property [
     sh:predicate schema:telephone ;
     sh:datatype xsd:string ;
-    sh:minCount 1 ;
-    sh:maxCount 1 ;
+    sh:minLength 10 ;
+    sh:maxLength 12 ;
   ] ;
   sh:property [
     sh:predicate schema:url ;
