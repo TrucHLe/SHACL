@@ -22,10 +22,15 @@ object SH {
   val predicate: IRI = createIRI(sh, "predicate")
 
 
-  /* Node kind vocabulary */
+  /*** Node kind vocabulary ***/
 
   val NodeKind: IRI = createIRI(sh, "NodeKind")
+  val BlankNode: IRI = createIRI(sh, "BlankNode")
+  val BlankNodeOrIRI: IRI = createIRI(sh, "BlankNodeOrIRI")
+  val BlankNodeOrLiteral: IRI = createIRI(sh, "BlankNodeOrLiteral")
   val IRI: IRI = createIRI(sh, "IRI")
+  val IRIOrLiteral: IRI = createIRI(sh, "IRIOrLiteral")
+  val Literal: IRI = createIRI(sh, "Literal")
 
 
   /*** Results vocabulary ***/
