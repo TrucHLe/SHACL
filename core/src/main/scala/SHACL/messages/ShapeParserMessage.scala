@@ -2,9 +2,6 @@ package SHACL
 package messages
 
 object ShapeParserMessages {
-  val invalidResource: String =
-    "Invalid resource."
-
   val invalidShtargetNode: String =
     "Invalid `sh:targetNode`."
 

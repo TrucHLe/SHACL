@@ -1,35 +1,8 @@
 package SHACL
-package core
+package model
 
 import java.util.Date
-import cats.Monoid
-import org.eclipse.rdf4j.model.{ Resource, IRI, Value }
-
-sealed trait ShAbstractResult
-
-object ShAbstractResult {
-  // TODO: check if `detail` should be `String`
-  final case class ShValidationResult(focusNode: IRI, path: IRI, value: Value, source: IRI, constraintComponent: ShConstraintComponent, detail: String, message: String, severity: ShSeverity) extends ShAbstractResult
-  final case class ShValidationReport(results: Vector[ShAbstractResult]) extends ShAbstractResult
-
-  implicit val monoid: Monoid[ShAbstractResult] = new Monoid[ShAbstractResult] {
-    def empty: ShAbstractResult = ShValidationReport(Vector.empty)
-    def combine(x: ShAbstractResult, y: ShAbstractResult): ShAbstractResult = (x, y) match {
-      case (ShValidationReport(xs), ShValidationReport(ys)) => ShValidationReport(xs ++ ys)
-      case (ShValidationReport(xs), ys) => ShValidationReport(xs :+ ys)
-      case (xs, ShValidationReport(ys)) => ShValidationReport(xs +: ys)
-      case _ => ShValidationReport(Vector(x, y))
-    }
-  }
-}
-
-sealed trait ShSeverity
-
-object ShSeverity {
-  final case object ShInfo extends ShSeverity
-  final case object ShViolation extends ShSeverity
-  final case object ShWarning extends ShSeverity
-}
+import org.eclipse.rdf4j.model.{ Resource, IRI }
 
 sealed trait ShConstraintComponent
 
@@ -45,7 +18,7 @@ object ShConstraintComponent {
   final case class ShLanguageInConstraintComponent(languageIn: Set[String]) extends ShConstraintComponent
   final case class ShLessThanConstraintComponent(lessThan: Resource) extends ShConstraintComponent
   final case class ShLessThanOrEqualsConstraintComponent(lessThanOrEquals: Resource) extends ShConstraintComponent
-  final case class MaxCountConstraintComponent(maxCount: Integer) extends ShConstraintComponent
+  final case class ShMaxCountConstraintComponent(maxCount: Integer) extends ShConstraintComponent
   final case class ShMaxExclusiveConstraintComponentS(maxExclusive: String) extends ShConstraintComponent
   final case class ShMaxExclusiveConstraintComponentB(maxExclusive: Boolean) extends ShConstraintComponent
   final case class ShMaxExclusiveConstraintComponentI(maxExclusive: Integer) extends ShConstraintComponent
@@ -74,36 +47,4 @@ object ShConstraintComponent {
   final case class ShQualifiedMinCountConstraintComponent(qualifiedMinCount: Integer, qualifiedValueShape: ShShape) extends ShConstraintComponent
   final case class ShShapeConstraintComponent(shape: ShShape) extends ShConstraintComponent
   final case class ShUniqueLangConstraintComponent(uniqueLang: Boolean) extends ShConstraintComponent
-}
-
-sealed trait ShNodeKind
-
-object ShNodeKind {
-  final case object ShBlankNode extends ShNodeKind
-  final case object ShBlankNodeOrIRI extends ShNodeKind
-  final case object ShBlankNodeOrLiteral extends ShNodeKind
-  final case object ShIRI extends ShNodeKind
-  final case object ShIRIOrLiteral extends ShNodeKind
-  final case object ShLiteral extends ShNodeKind
-}
-
-sealed trait RdfProperty
-
-object RdfProperty {
-  final case object RdfType extends RdfProperty
-  final case object RdfSubClassOf extends RdfProperty
-  final case object RdfSubPropertyOf extends RdfProperty
-  final case object RdfComment extends RdfProperty
-  final case object RdfLabel extends RdfProperty
-  final case object RdfDomain extends RdfProperty
-  final case object RdfRange extends RdfProperty
-  final case object RdfSeeAlso extends RdfProperty
-  final case object RdfIsDefinedBy extends RdfProperty
-  final case object RdfSubject extends RdfProperty
-  final case object RdfPredicate extends RdfProperty
-  final case object RdfObject extends RdfProperty
-  final case object RdfMemeber extends RdfProperty
-  final case object RdfValue extends RdfProperty
-  final case object RdfFirst extends RdfProperty
-  final case object RdfRest extends RdfProperty
 }

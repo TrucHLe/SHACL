@@ -3,22 +3,23 @@ package core
 
 final case class ShapeParser() {
   import cats.Apply
-  import cats.data.Validated
   import cats.data.Validated._
+  import scala.collection.mutable.HashSet
   import org.eclipse.rdf4j.model.{ Resource, IRI, Statement, BNode }
   import scala.collection.JavaConverters._
   import org.eclipse.rdf4j.rio._
   import org.eclipse.rdf4j.model.Model
   import vocabulary.{ RDF, SH, XSD }
   import messages.ShapeParserMessages._
-  import ShTarget._
-  import ShConstraint._
-  import ShAlgebraic._
-  import ShUnaryParameter._
-  import ShNaryParameter._
-  import ShPropertyPath._
+  import model._
+  import model.ShTarget._
+  import model.ShConstraint._
+  import model.ShConstraintComponent._
+  import model.ShPropertyPath._
+  import model.ShValidationReport._
+  import model.ShNodeKind._
+
   import CheckAbstraction._
-  import ShSeverity._
 
   val shape: Model = {
     val shapeInput = classOf[ShapeParser].getResourceAsStream("/shapeInput.ttl")
@@ -27,31 +28,8 @@ final case class ShapeParser() {
     shape
   }
 
-  // TODO: accumulate errors
-  val extractShSchema: Check[ShSchema] = {
-    import scala.collection.mutable.HashSet
-    val setShShape: HashSet[ShShape] = HashSet.empty
-    val setShSeverity: HashSet[ShSeverity] = HashSet.empty
 
-    shape.filter(null, RDF.ty, SH.Shape).asScala.map { stm =>
-      extractShShape(stm) match {
-        case Valid(v) => setShShape += v
-        case Invalid(ShSeverities(iVector)) => setShSeverity ++= iVector.toSet
-        case _ => None
-      }
-    }
-    if (setShSeverity.isEmpty)
-      checked(new ShSchema(setShShape.toSet))
-    else
-      Validated.invalid(ShSeverities(setShSeverity.toVector))
-  }
-
-  def extractShShapeLabel(statement: Statement): Check[Resource] =
-    statement match {
-      case Rdf4j.Statement(Rdf4j.Resource(r), _, _) => checked(r)
-      case Rdf4j.Statement(r, _, _) => violationF(invalidResource, r.toString)
-    }
-
+/*
   def extractShTargetNode(statement: Statement): Check[ShTargetNode] =
     statement match {
       case Rdf4j.Statement(_, _, Rdf4j.Value(v)) => checked(new ShTargetNode(v))
@@ -149,41 +127,6 @@ final case class ShapeParser() {
       Validated.invalid(ShSeverities(setShSeverity.toVector))
   }
 
-  def extractSetShTarget(subject: Resource): Check[Set[ShTarget]] = {
-    import scala.collection.mutable.HashSet
-    val setShTarget: HashSet[ShTarget] = HashSet.empty
-    val setShSeverity: HashSet[ShSeverity] = HashSet.empty
-
-    extractSetShTargetNode(subject) match {
-      case Valid(vSet) => setShTarget ++= vSet
-      case Invalid(ShSeverities(iVector)) => setShSeverity ++= iVector.toSet
-      case _ => None
-    }
-    extractSetShTargetClass(subject) match {
-      case Valid(vSet) => setShTarget ++= vSet
-      case Invalid(ShSeverities(iVector)) => setShSeverity ++= iVector.toSet
-      case _ => None
-    }
-    extractSetShTargetSubjectsOf(subject) match {
-      case Valid(vSet) => setShTarget ++= vSet
-      case Invalid(ShSeverities(iVector)) => setShSeverity ++= iVector.toSet
-      case _ => None
-    }
-    extractSetShTargetObjectsOf(subject) match {
-      case Valid(vSet) => setShTarget ++= vSet
-      case Invalid(ShSeverities(iVector)) => setShSeverity ++= iVector.toSet
-      case _ => None
-    }
-
-    if (setShSeverity.isEmpty)
-      checked(setShTarget.toSet)
-    else
-      Validated.invalid(ShSeverities(setShSeverity.toVector))
-  }
-
-  // TODO
-  def extractSetShFilterShape(subject: Resource): Check[Set[ShShape]] = checked(Set.empty)
-
   // TODO: fill all cases
   def extractShUnaryParameter(statement: Statement): Option[ShUnaryParameter] =
     statement match {
@@ -239,10 +182,37 @@ final case class ShapeParser() {
       Validated.invalid(ShSeverities(setShSeverity.toVector))
   }
 
-  // TODO
-  def extractShNodeConstraint(resource: Resource): Check[ShNodeConstraint] = ???
 
-  def extractShPathConstraint(resource: Resource, path: IRI, isPredicatePath: Boolean): Check[ShPathConstraint] = {
+
+
+*/
+
+
+  def extractSetShTargetNode(subject: Resource): Check[Set[ShTargetNode]] = checked(Set.empty)
+  def extractSetShTargetClass(subject: Resource): Check[Set[ShTargetNode]] = checked(Set.empty)
+  def extractSetShTargetSubjectsOf(subject: Resource): Check[Set[ShTargetNode]] = checked(Set.empty)
+  def extractSetShTargetObjectsOf(subject: Resource): Check[Set[ShTargetNode]] = checked(Set.empty)
+
+  def extractSetShTarget(subject: Resource): Check[Set[ShTarget]] =
+    Apply[Check].map4(
+      extractSetShTargetNode(subject),
+      extractSetShTargetClass(subject),
+      extractSetShTargetSubjectsOf(subject),
+      extractSetShTargetObjectsOf(subject)
+    )((s1, s2, s3, s4) => s1 ++ s2 ++ s3 ++ s4)
+
+  // TODO
+  def extractSetShFilterShape(subject: Resource): Check[Set[ShShape]] = checked(Set.empty)
+
+
+
+
+  // TODO
+  def extractShNodeConstraint(sourceShape: Resource, resource: Resource): Check[ShNodeConstraint] = checked(new ShNodeConstraint(Set.empty))
+
+  def extractShPathConstraint(sourceShape: Resource, resource: Resource, path: IRI): Check[ShPathConstraint] = {
+    checked(new ShPathConstraint(ShPredicatePath, Set.empty))
+    /*
     extractSetShParameter(resource) match {
       case Valid(vSet) =>
         if (vSet.size == 0) {
@@ -255,102 +225,99 @@ final case class ShapeParser() {
           checked(new ShPathConstraint(ShPredicatePath, vSet))
       case Invalid(iSet) => Validated.invalid(iSet)
     }
+    */
   }
 
-  // TODO
-  def extractShPathConstraint(resource: Resource, path: BNode): Check[ShPathConstraint] = ???
 
-  def extractShConstraint(statement: Statement): Check[ShConstraint] =
+  // TODO
+  def extractShPathConstraint(sourceShape: Resource, resource: Resource, path: BNode): Check[ShPathConstraint] = ???
+
+  def extractShConstraint(sourceShape: Resource, statement: Statement): Check[ShConstraint] =
     statement match {
       case Rdf4j.Statement(_, _, Rdf4j.Resource(r)) =>
         shape.filter(r, SH.predicate, null).asScala.toList match {
-          case Rdf4j.Statement(_, _, Rdf4j.IRI(predPath)) :: Nil => extractShPathConstraint(r, predPath, true)
-          case Rdf4j.Statement(_, _, Rdf4j.IRI(predPath)) :: _ => violation(moreThanOneShpredicate(predPath.toString))
+          case Rdf4j.Statement(_, _, Rdf4j.IRI(pred)) :: Nil =>
+            extractShPathConstraint(sourceShape, r, pred)
+          case Rdf4j.Statement(_, _, Rdf4j.IRI(pred)) :: _ =>
+            violation(r, Some(SH.predicate), Some(pred), Some(sourceShape), new ShMaxCountConstraintComponent(1), None, Some(moreThanOneShpredicate(pred.toString)))
           case Nil =>
             shape.filter(r, SH.path, null).asScala.toList match {
-              case Rdf4j.Statement(_, _, Rdf4j.IRI(path)) :: Nil => extractShPathConstraint(r, path, false)
-              case Rdf4j.Statement(_, _, Rdf4j.IRI(path)) :: _ => violation(moreThanOneShpath(path.toString))
-              case Rdf4j.Statement(_, _, Rdf4j.BNode(path)) :: Nil => extractShPathConstraint(r, path)
-              case Rdf4j.Statement(_, _, Rdf4j.BNode(path)) :: _ => violation(moreThanOneShpath(path.toString))
-              case Nil => extractShNodeConstraint(r)
-              case Rdf4j.Statement(_, _, vpath) => violation(invalidShpath(vpath.toString))
+              case Rdf4j.Statement(_, _, Rdf4j.IRI(path)) :: Nil =>
+                extractShPathConstraint(sourceShape, r, path)
+              case Rdf4j.Statement(_, _, Rdf4j.IRI(path)) :: _ =>
+                violation(r, Some(SH.path), Some(path), Some(sourceShape), new ShMaxCountConstraintComponent(1), None, Some(moreThanOneShpath(path.toString)))
+              case Rdf4j.Statement(_, _, Rdf4j.BNode(path)) :: Nil =>
+                extractShPathConstraint(sourceShape, r, path)
+              case Rdf4j.Statement(_, _, Rdf4j.BNode(path)) :: _ =>
+                violation(r, Some(SH.path), Some(path), Some(sourceShape), new ShMaxCountConstraintComponent(1), None, Some(moreThanOneShpath(path.toString)))
+              case Nil => extractShNodeConstraint(sourceShape, r)
+              case Rdf4j.Statement(_, _, Rdf4j.Value(value)) =>
+                violation(r, Some(SH.path), Some(value), Some(sourceShape), new ShNodeKindConstraintComponent(ShBlankNodeOrIRI), None, Some(invalidShpath(value.toString)))
             }
-          case Rdf4j.Statement(_, _, vpred) => violation(invalidShpredicate(vpred.toString))
+          case Rdf4j.Statement(_, _, Rdf4j.Value(value)) =>
+            violation(r, Some(SH.predicate), Some(value), Some(sourceShape), new ShNodeKindConstraintComponent(ShBlankNodeOrIRI), None, Some(invalidShpredicate(value.toString)))
         }
-      case Rdf4j.Statement(_, _, v) => violation(invalidShConstraint(v.toString))
+      case _ => ??? // already caught by RDF4J turtle parser
     }
 
-  // TODO: accumulate errors
   def extractSetShConstraint(subject: Resource): Check[Set[ShConstraint]] = {
-    import scala.collection.mutable.HashSet
-    val setShConstraint: HashSet[ShConstraint] = HashSet.empty
-    val setShSeverity: HashSet[ShSeverity] = HashSet.empty
-
+    val setSuccess: HashSet[ShConstraint] = HashSet.empty
+    val setFailure: HashSet[ShValidationReport] = HashSet.empty
     shape.filter(subject, SH.property, null).asScala.map { stm =>
-      extractShConstraint(stm) match {
-        case Valid(v) => setShConstraint += v
-        case Invalid(i) => setShSeverity += i
+      extractShConstraint(subject, stm) match {
+        case Valid(v) => setSuccess += v
+        case Invalid(i) => setFailure += i
       }
     }
-
-    if (setShSeverity.isEmpty)
-      checked(setShConstraint.toSet)
+    if (setFailure.isEmpty)
+      checked(setSuccess.toSet)
+    else if (setFailure.size == 1)
+      unchecked(setFailure.head)
     else
-      Validated.invalid(ShSeverities(setShSeverity.toVector))
+      unchecked(ShValidationResults(setFailure.toVector))
   }
 
   // TODO
   def extractSetShAlgebraic(subject: Resource): Check[Set[ShAlgebraic]] = checked(Set.empty)
 
-  def extractSetShTest(subject: Resource): Check[Set[ShTest]] = {
-    import scala.collection.mutable.HashSet
-    val setShTest: HashSet[ShTest] = HashSet.empty
-    val setShSeverity: HashSet[ShSeverity] = HashSet.empty
+  def extractSetShTest(subject: Resource): Check[Set[ShTest]] =
+    Apply[Check].map2(
+      extractSetShConstraint(subject),
+      extractSetShAlgebraic(subject)
+    )((s1, s2) => s1 ++ s2)
 
-    extractSetShConstraint(subject) match {
-      case Valid(vSet) => setShTest ++= vSet
-      case Invalid(ShSeverities(iVector)) => setShSeverity ++= iVector.toSet
-      case _ => None
+  def extractShShapeLabel(statement: Statement): Check[Resource] =
+    statement match {
+      case Rdf4j.Statement(Rdf4j.Resource(r), _, _) => checked(r)
+      case _ => ??? // already caught by RDF4J turtle parser
     }
-    extractSetShAlgebraic(subject) match {
-      case Valid(vSet) => setShTest ++= vSet
-      case Invalid(ShSeverities(iVector)) => setShSeverity ++= iVector.toSet
-      case _ => None
-    }
-
-    if (setShSeverity.isEmpty)
-      checked(setShTest.toSet)
-    else
-      Validated.invalid(ShSeverities(setShSeverity.toVector))
-  }
 
   def extractShShape(statement: Statement): Check[ShShape] =
     extractShShapeLabel(statement).andThen { label =>
-      import scala.collection.mutable.HashSet
-      val setShTarget: HashSet[ShTarget] = HashSet.empty
-      val setShShape: HashSet[ShShape] = HashSet.empty
-      val setShTest: HashSet[ShTest] = HashSet.empty
-      val setShSeverity: HashSet[ShSeverity] = HashSet.empty
-
-      extractSetShTarget(label) match {
-        case Valid(vSet) => setShTarget ++= vSet
-        case Invalid(ShSeverities(iVector)) => setShSeverity ++= iVector.toSet
-        case _ => None
-      }
-      extractSetShFilterShape(label) match {
-        case Valid(vSet) => setShShape ++= vSet
-        case Invalid(ShSeverities(iVector)) => setShSeverity ++= iVector.toSet
-        case _ => None
-      }
-      extractSetShTest(label) match {
-        case Valid(vSet) => setShTest ++= vSet
-        case Invalid(ShSeverities(iVector)) => setShSeverity ++= iVector.toSet
-        case _ => None
-      }
-
-      if (setShSeverity.isEmpty)
-        checked(new ShShape(label, setShTarget.toSet, setShShape.toSet, setShTest.toSet))
-      else
-        Validated.invalid(ShSeverities(setShSeverity.toVector))
+      Apply[Check].map3(
+        extractSetShTarget(label),
+        extractSetShFilterShape(label),
+        extractSetShTest(label)
+      )((setShTarget, setShFilter, setShTest) => new ShShape(label, setShTarget, setShFilter, setShTest))
   }
+
+  val extractSetShShape: Check[Set[ShShape]] = {
+    val setSuccess: HashSet[ShShape] = HashSet.empty
+    val setFailure: HashSet[ShValidationReport] = HashSet.empty
+    shape.filter(null, RDF.ty, SH.Shape).asScala.map { stm =>
+      extractShShape(stm) match {
+        case Valid(v) => setSuccess += v
+        case Invalid(i) => setFailure += i
+      }
+    }
+    if (setFailure.isEmpty)
+      checked(setSuccess.toSet)
+    else if (setFailure.size == 1)
+      unchecked(setFailure.head)
+    else
+      unchecked(ShValidationResults(setFailure.toVector))
+  }
+
+  val extractShSchema: Check[ShSchema] =
+    Apply[Check].map(extractSetShShape)(setShShape => new ShSchema(setShShape))
 }

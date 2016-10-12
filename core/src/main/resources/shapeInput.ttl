@@ -26,7 +26,8 @@ ex:OrganizationShape
 #    sh:path [ sh:alternativePath ( ex:father ex:mother  ) ] ;
 #  ] ;
   sh:property [
-    sh:predicate schema:logo ;
+   sh:predicate 1 ;
+#   sh:predicate schema:logo ;
 #    sh:predicate schema:thing ;
     sh:class schema:ImageObject ;
   ] ;
