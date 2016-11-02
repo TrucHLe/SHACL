@@ -1,14 +1,15 @@
 package SHACL
 package core
 
-final case class ShapeParser() {
+import org.eclipse.rdf4j.model.Model
+
+final case class ShapeParser(shape: Model) {
   import cats.Apply
   import cats.data.Validated._
   import scala.collection.mutable.HashSet
-  import org.eclipse.rdf4j.model.{ Resource, IRI, Statement, BNode }
+  import org.eclipse.rdf4j.model.{ Resource, IRI, Value, Statement, BNode }
+  import org.eclipse.rdf4j.model.impl._
   import scala.collection.JavaConverters._
-  import org.eclipse.rdf4j.rio._
-  import org.eclipse.rdf4j.model.Model
   import vocabulary.{ RDF, SH, XSD }
   import messages.ShapeParserMessages._
   import model._
@@ -18,176 +19,20 @@ final case class ShapeParser() {
   import model.ShPropertyPath._
   import model.ShValidationReport._
   import model.ShNodeKind._
-
+  import model.ShUnaryParameter._
   import CheckAbstraction._
 
-  val shape: Model = {
-    val shapeInput = classOf[ShapeParser].getResourceAsStream("/shapeInput.ttl")
-    val shape = Rio.parse(shapeInput, "", RDFFormat.TURTLE)
-    if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
-    shape
-  }
-
-
-/*
-  def extractShTargetNode(statement: Statement): Check[ShTargetNode] =
-    statement match {
-      case Rdf4j.Statement(_, _, Rdf4j.Value(v)) => checked(new ShTargetNode(v))
-      case Rdf4j.Statement(_, _, v) => violationF(invalidShtargetNode, v.toString)
-    }
-
-  // TODO: accumulate errors
-  def extractSetShTargetNode(subject: Resource): Check[Set[ShTargetNode]] = {
-    import scala.collection.mutable.HashSet
-    val setShTargetNode: HashSet[ShTargetNode] = HashSet.empty
-    val setShSeverity: HashSet[ShSeverity] = HashSet.empty
-
-    shape.filter(subject, SH.targetNode, null).asScala.map { stm =>
-      extractShTargetNode(stm) match { 
-        case Valid(v) => setShTargetNode += v
-        case Invalid(i) => setShSeverity += i
-      }
-    }
-    if (setShSeverity.isEmpty)
-      checked(setShTargetNode.toSet)
-    else
-      Validated.invalid(ShSeverities(setShSeverity.toVector))
-  }
-
-  def extractShTargetClass(statement: Statement): Check[ShTargetClass] =
-    statement match {
-      case Rdf4j.Statement(_, _, Rdf4j.IRI(iri)) => checked(new ShTargetClass(iri))
-      case Rdf4j.Statement(_, _, v) => violationF(invalidShtargetClass, v.toString)
-    }
-
-  // TODO: accumulate errors
-  def extractSetShTargetClass(subject: Resource): Check[Set[ShTargetClass]] = {
-    import scala.collection.mutable.HashSet
-    val setShTargetClass: HashSet[ShTargetClass] = HashSet.empty
-    val setShSeverity: HashSet[ShSeverity] = HashSet.empty
-
-    shape.filter(subject, SH.targetClass, null).asScala.map { stm =>
-      extractShTargetClass(stm) match {
-        case Valid(v) => setShTargetClass += v
-        case Invalid(i) => setShSeverity += i
-      }
-    }
-    if (setShSeverity.isEmpty)
-      checked(setShTargetClass.toSet)
-    else
-      Validated.invalid(ShSeverities(setShSeverity.toVector))
-  }
-
-  def extractShTargetSubjectsOf(statement: Statement): Check[ShTargetSubjectsOf] =
-    statement match {
-      case Rdf4j.Statement(_, _, Rdf4j.IRI(iri)) => checked(new ShTargetSubjectsOf(iri))
-      case Rdf4j.Statement(_, _, v) => violationF(invalidShtargetSubjectsOf, v.toString)
-    }
-
-  // TODO: accumulate errors
-  def extractSetShTargetSubjectsOf(subject: Resource): Check[Set[ShTargetSubjectsOf]] = {
-    import scala.collection.mutable.HashSet
-    val setShTargetSubjectsOf: HashSet[ShTargetSubjectsOf] = HashSet.empty
-    val setShSeverity: HashSet[ShSeverity] = HashSet.empty
-
-    shape.filter(subject, SH.targetSubjectsOf, null).asScala.map { stm =>
-      extractShTargetSubjectsOf(stm) match {
-        case Valid(v) => setShTargetSubjectsOf += v
-        case Invalid(i) => setShSeverity += i
-      }
-    }
-
-    if (setShSeverity.isEmpty)
-      checked(setShTargetSubjectsOf.toSet)
-    else
-      Validated.invalid(ShSeverities(setShSeverity.toVector))
-  }
-
-  def extractShTargetObjectsOf(statement: Statement): Check[ShTargetObjectsOf] =
-    statement match {
-      case Rdf4j.Statement(_, _, Rdf4j.IRI(iri)) => checked(new ShTargetObjectsOf(iri))
-      case Rdf4j.Statement(_, _, v) => violationF(invalidShtargetObjectsOf, v.toString)
-    }
-
-  // TODO: accumulate errors
-  def extractSetShTargetObjectsOf(subject: Resource): Check[Set[ShTargetObjectsOf]] = {
-    import scala.collection.mutable.HashSet
-    val setShTargetObjectsOf: HashSet[ShTargetObjectsOf] = HashSet.empty
-    val setShSeverity: HashSet[ShSeverity] = HashSet.empty
-
-    shape.filter(subject, SH.targetObjectsOf, null).asScala.map { stm =>
-      extractShTargetObjectsOf(stm) match {
-        case Valid(v) => setShTargetObjectsOf += v
-        case Invalid(i) => setShSeverity += i
-      }
-    }
-    if (setShSeverity.isEmpty)
-      checked(setShTargetObjectsOf.toSet)
-    else
-      Validated.invalid(ShSeverities(setShSeverity.toVector))
-  }
-
-  // TODO: fill all cases
-  def extractShUnaryParameter(statement: Statement): Option[ShUnaryParameter] =
-    statement match {
-      case Rdf4j.Statement(_, SH.nodeKind, Rdf4j.Value(v)) => Some(new ShNodeKind(v))
-      //TODO: case Rdf4j.Statement(_, SH.in, ???))
-      case Rdf4j.Statement(_, SH.clss, Rdf4j.IRI(iri)) => Some(new ShClass(iri))
-      case Rdf4j.Statement(_, SH.datatype, Rdf4j.IRI(iri)) => Some(new ShDatatype(iri))
-      case Rdf4j.Statement(_, SH.minLength, Rdf4j.Literal(n, XSD.integer)) => Some(new ShMinLength(n.toInt))
-      case Rdf4j.Statement(_, SH.maxLength, Rdf4j.Literal(n, XSD.integer)) => Some(new ShMaxLength(n.toInt))
-      case _ => None
-    }
-
-  // TODO: fill all cases
-  def extractNaryParameter(statement: Statement): Option[ShNaryParameter] =
-    statement match {
-      case _ => None
-    }
-
-  def extractShParameter(statement: Statement): Check[ShParameter] = {
-    extractShUnaryParameter(statement) match {
-      case Some(unaryParameter) => checked(unaryParameter)
-      case None =>
-        extractNaryParameter(statement) match {
-          case Some(naryParameter) => checked(naryParameter)
-          case None =>
-            statement match {
-              case Rdf4j.Statement(_, parameter, _) => violation(invalidShParameter(parameter.toString))
-            }
-      }
-    }
-  }
-
-  // TODO: accumulate errors
-  def extractSetShParameter(resource: Resource): Check[Set[ShParameter]] = {
-    import scala.collection.mutable.HashSet
-    val setShParameter: HashSet[ShParameter] = HashSet.empty
-    val setShSeverity: HashSet[ShSeverity] = HashSet.empty
-
-    shape.filter(resource, null, null).asScala.map { stm =>
-      stm match {
-        case Rdf4j.Statement(_, SH.predicate, _) => None
-        case Rdf4j.Statement(_, SH.path, _) => None
-        case _ => extractShParameter(stm) match {
-          case Valid(v) => setShParameter += v
-          case Invalid(i) => setShSeverity += i
+  def extractFirstRestList(bnode: BNode): Set[Value] = {
+    shape.filter(bnode, RDF.first, null).asScala.toList match {
+      case Rdf4j.Statement(_, _, iriOrLiteral) :: Nil =>
+        shape.filter(bnode, RDF.rest, null).asScala.toList match {
+          case Rdf4j.Statement(_, _, Rdf4j.IRI(iri)) :: Nil => Set(iriOrLiteral)
+          case Rdf4j.Statement(_, _, Rdf4j.BNode(bn)) :: Nil => extractFirstRestList(bn) + iriOrLiteral
         }
-      }
     }
-
-    if (setShSeverity.isEmpty)
-      checked(setShParameter.toSet)
-    else
-      Validated.invalid(ShSeverities(setShSeverity.toVector))
   }
 
-
-
-
-*/
-
-
+  // TODO ---------------------------------------------------------
   def extractSetShTargetNode(subject: Resource): Check[Set[ShTargetNode]] = checked(Set.empty)
   def extractSetShTargetClass(subject: Resource): Check[Set[ShTargetNode]] = checked(Set.empty)
   def extractSetShTargetSubjectsOf(subject: Resource): Check[Set[ShTargetNode]] = checked(Set.empty)
@@ -204,67 +49,234 @@ final case class ShapeParser() {
   // TODO
   def extractSetShFilterShape(subject: Resource): Check[Set[ShShape]] = checked(Set.empty)
 
-
-
-
-  // TODO
-  def extractShNodeConstraint(sourceShape: Resource, resource: Resource): Check[ShNodeConstraint] = checked(new ShNodeConstraint(Set.empty))
-
-  def extractShPathConstraint(sourceShape: Resource, resource: Resource, path: IRI): Check[ShPathConstraint] = {
-    checked(new ShPathConstraint(ShPredicatePath, Set.empty))
-    /*
-    extractSetShParameter(resource) match {
-      case Valid(vSet) =>
-        if (vSet.size == 0) {
-          if (isPredicatePath)
-            violation(emptyShPredicatePathConstraint(path.toString))
-          else
-            violation(emptyShPathConstraint(path.toString))
-        }
-        else
-          checked(new ShPathConstraint(ShPredicatePath, vSet))
-      case Invalid(iSet) => Validated.invalid(iSet)
+  def extractShPNodeKind(sourceShape: Resource, focusNode: Resource, value: Value): Check[ShPNodeKind] =
+    value match {
+      case iri: IRI => checked(new ShPNodeKind(iri))
+      case v =>
+        violation(
+          focusNode,
+          Some(SH.nodeKind),
+          Some(v),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShIRI),
+          None,
+          Some(nodeKindMustBeIRI))
     }
-    */
+
+  def extractShPIn(value: Value): Check[ShPIn] =
+    value match {
+      case iri: IRI => checked(new ShPIn(Set(iri)))
+      case simpleLiteral: SimpleLiteral => checked(new ShPIn(Set(simpleLiteral)))
+      case Rdf4j.BNode(bnode) => checked(new ShPIn(extractFirstRestList(bnode)))
+    }
+
+  def extractShPClass(sourceShape: Resource, focusNode: Resource, value: Value): Check[ShPClass] =
+    value match {
+      case iri: IRI => checked(new ShPClass(iri))
+      case v =>
+        violation(
+          focusNode,
+          Some(SH.clss),
+          Some(v),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShIRI),
+          None,
+          Some(classMustBeIRI)
+        )
+    }
+
+  def extractShPDatatype(sourceShape: Resource, focusNode: Resource, value: Value): Check[ShPDatatype] =
+    value match {
+      case iri: IRI => checked(new ShPDatatype(iri))
+      case v =>
+        violation(
+          focusNode,
+          Some(SH.datatype),
+          Some(v),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShIRI),
+          None,
+          Some(datatypeMustBeIRI)
+        )
+    }
+
+  def extractShPMinLength(sourceShape: Resource, focusNode: Resource, value: Value): Check[ShPMinLength] =
+    value match {
+      case Rdf4j.Literal(n, XSD.integer) => checked(new ShPMinLength(n.toInt))
+      case v =>
+        violation(
+          focusNode,
+          Some(SH.minLength),
+          Some(v),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShLiteral),
+          None,
+          Some(minLengthMustBeNumber)
+        )
+    }
+
+  def extractShPMaxLength(sourceShape: Resource, focusNode: Resource, value: Value): Check[ShPMaxLength] =
+    value match {
+      case Rdf4j.Literal(n, XSD.integer) => checked(new ShPMaxLength(n.toInt))
+      case v =>
+        violation(
+          focusNode,
+          Some(SH.maxLength),
+          Some(v),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShLiteral),
+          None,
+          Some(maxLengthMustBeNumber)
+        )
+    }
+
+  def extractSetShUnaryParameter(sourceShape: Resource, focusNode: Resource): Check[Set[ShUnaryParameter]] = {
+    def extractSet(list: List[Statement]): Check[Set[ShUnaryParameter]] =
+      list match {
+        case Nil => checked(Set.empty)
+        case Rdf4j.Statement(_, SH.predicate, _) :: xs => extractSet(xs)
+        case Rdf4j.Statement(_, SH.path, _) :: xs => extractSet(xs)
+        case Rdf4j.Statement(r, SH.nodeKind, value) :: xs =>
+          Apply[Check].map2(
+            extractShPNodeKind(sourceShape, focusNode, value),
+            extractSet(xs)
+          )((p, s) => s + p)
+        case Rdf4j.Statement(_, SH.in, value) :: xs =>
+          Apply[Check].map2(
+            extractShPIn(value),
+            extractSet(xs)
+          )((p, s) => s + p)
+        case Rdf4j.Statement(_, SH.clss, value) :: xs =>
+          Apply[Check].map2(
+            extractShPClass(sourceShape, focusNode, value),
+            extractSet(xs)
+          )((p, s) => s + p)
+        case Rdf4j.Statement(_, SH.datatype, value) :: xs =>
+          Apply[Check].map2(
+            extractShPDatatype(sourceShape, focusNode, value),
+            extractSet(xs)
+          )((p, s) => s + p)
+        case Rdf4j.Statement(_, SH.minLength, value) :: xs =>
+          Apply[Check].map2(
+            extractShPMinLength(sourceShape, focusNode, value),
+            extractSet(xs)
+          )((p, s) => s + p)
+        case Rdf4j.Statement(_, SH.maxLength, value) :: xs =>
+          Apply[Check].map2(
+            extractShPMaxLength(sourceShape, focusNode, value),
+            extractSet(xs)
+          )((p, s) => s + p)
+
+        //TODO: implement the rest of ShUnaryparameter
+        case _ => checked(Set.empty)
+      }
+
+    extractSet(shape.filter(focusNode, null, null).asScala.toList)
   }
 
-
   // TODO
-  def extractShPathConstraint(sourceShape: Resource, resource: Resource, path: BNode): Check[ShPathConstraint] = ???
+  def extractSetShNaryParameter(sourceShape: Resource, resource: Resource): Check[Set[ShNaryParameter]] = checked(Set.empty)
 
-  def extractShConstraint(sourceShape: Resource, statement: Statement): Check[ShConstraint] =
+  def extractSetShParameter(sourceShape: Resource, focusNode: Resource): Check[Set[ShParameter]] =
+    Apply[Check].map2(
+      extractSetShUnaryParameter(sourceShape, focusNode),
+      extractSetShNaryParameter(sourceShape, focusNode)
+    )((s1, s2) => s1 ++ s2)
+
+  def extractShPathConstraint(sourceShape: Resource, statement: Statement): Check[ShPathConstraint] =
     statement match {
-      case Rdf4j.Statement(_, _, Rdf4j.Resource(r)) =>
-        shape.filter(r, SH.predicate, null).asScala.toList match {
+      case Rdf4j.Statement(_, _, Rdf4j.Resource(focusNode)) =>
+        shape.filter(focusNode, SH.predicate, null).asScala.toList match {
           case Rdf4j.Statement(_, _, Rdf4j.IRI(pred)) :: Nil =>
-            extractShPathConstraint(sourceShape, r, pred)
+            Apply[Check].map(
+              extractSetShParameter(sourceShape, focusNode)
+            )(s => new ShPathConstraint(ShPredicatePath, s))
           case Rdf4j.Statement(_, _, Rdf4j.IRI(pred)) :: _ =>
-            violation(r, Some(SH.predicate), Some(pred), Some(sourceShape), new ShMaxCountConstraintComponent(1), None, Some(moreThanOneShpredicate(pred.toString)))
+            violation(
+              focusNode,
+              Some(SH.predicate),
+              Some(pred),
+              Some(sourceShape),
+              new ShMaxCountConstraintComponent(1),
+              None,
+              Some(moreThanOneShpredicate(pred.toString)))
           case Nil =>
-            shape.filter(r, SH.path, null).asScala.toList match {
+            shape.filter(focusNode, SH.path, null).asScala.toList match {
               case Rdf4j.Statement(_, _, Rdf4j.IRI(path)) :: Nil =>
-                extractShPathConstraint(sourceShape, r, path)
+                Apply[Check].map(
+                  extractSetShParameter(sourceShape, focusNode)
+                )(s => new ShPathConstraint(ShPredicatePath, s))
               case Rdf4j.Statement(_, _, Rdf4j.IRI(path)) :: _ =>
-                violation(r, Some(SH.path), Some(path), Some(sourceShape), new ShMaxCountConstraintComponent(1), None, Some(moreThanOneShpath(path.toString)))
+                violation(
+                  focusNode,
+                  Some(SH.path),
+                  Some(path),
+                  Some(sourceShape),
+                  new ShMaxCountConstraintComponent(1),
+                  None,
+                  Some(moreThanOneShpath(path.toString)))
+              // NOTE: does not support SPARQL path constraints
               case Rdf4j.Statement(_, _, Rdf4j.BNode(path)) :: Nil =>
-                extractShPathConstraint(sourceShape, r, path)
+                checked(new ShPathConstraint(ShPredicatePath, Set.empty))
               case Rdf4j.Statement(_, _, Rdf4j.BNode(path)) :: _ =>
-                violation(r, Some(SH.path), Some(path), Some(sourceShape), new ShMaxCountConstraintComponent(1), None, Some(moreThanOneShpath(path.toString)))
-              case Nil => extractShNodeConstraint(sourceShape, r)
-              case Rdf4j.Statement(_, _, Rdf4j.Value(value)) =>
-                violation(r, Some(SH.path), Some(value), Some(sourceShape), new ShNodeKindConstraintComponent(ShBlankNodeOrIRI), None, Some(invalidShpath(value.toString)))
+                violation(
+                  focusNode,
+                  Some(SH.path),
+                  Some(path),
+                  Some(sourceShape),
+                  new ShMaxCountConstraintComponent(1),
+                  None,
+                  Some(moreThanOneShpath(path.toString)))
+              case Rdf4j.Statement(_, _, Rdf4j.Value(value)) :: _ =>
+                violation(
+                  focusNode,
+                  Some(SH.path),
+                  Some(value),
+                  Some(sourceShape),
+                  new ShNodeKindConstraintComponent(ShBlankNodeOrIRI),
+                  None,
+                  Some(invalidShpath(value.toString)))
+              case _ =>
+                violation(
+                  focusNode,
+                  Some(SH.property),
+                  None,
+                  Some(sourceShape),
+                  new ShHasValueConstraintComponent(oneOrMoreTriples),
+                  None,
+                  Some(emptyShPathConstraint(sourceShape.toString)))
             }
-          case Rdf4j.Statement(_, _, Rdf4j.Value(value)) =>
-            violation(r, Some(SH.predicate), Some(value), Some(sourceShape), new ShNodeKindConstraintComponent(ShBlankNodeOrIRI), None, Some(invalidShpredicate(value.toString)))
+          case Rdf4j.Statement(_, _, Rdf4j.Value(value)) :: _ =>
+            violation(
+              focusNode,
+              Some(SH.predicate),
+              Some(value),
+              Some(sourceShape),
+              new ShNodeKindConstraintComponent(ShBlankNodeOrIRI),
+              None,
+              Some(invalidShpredicate(value.toString)))
         }
-      case _ => ??? // already caught by RDF4J turtle parser
+      case _ =>
+        violation(
+          sourceShape,
+          Some(SH.property),
+          None,
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShBlankNode),
+          None,
+          Some(invalidShproperty))
     }
 
-  def extractSetShConstraint(subject: Resource): Check[Set[ShConstraint]] = {
-    val setSuccess: HashSet[ShConstraint] = HashSet.empty
+
+  // TODO: SHACL documentation doesn't specify which constraint
+  // can be NodeConstraint. Check again in the future.
+  def extractSetShNodeConstraint(subject: Resource): Check[Set[ShNodeConstraint]] = checked(Set.empty)
+
+  def extractSetShPathConstraint(subject: Resource): Check[Set[ShPathConstraint]] = {
+    val setSuccess: HashSet[ShPathConstraint] = HashSet.empty
     val setFailure: HashSet[ShValidationReport] = HashSet.empty
     shape.filter(subject, SH.property, null).asScala.map { stm =>
-      extractShConstraint(subject, stm) match {
+      extractShPathConstraint(subject, stm) match {
         case Valid(v) => setSuccess += v
         case Invalid(i) => setFailure += i
       }
@@ -277,7 +289,13 @@ final case class ShapeParser() {
       unchecked(ShValidationResults(setFailure.toVector))
   }
 
-  // TODO
+  def extractSetShConstraint(subject: Resource): Check[Set[ShConstraint]] =
+    Apply[Check].map2(
+      extractSetShNodeConstraint(subject),
+      extractSetShPathConstraint(subject)
+    )((s1, s2) => s1 ++ s2)
+
+  // TODO ---------------------------------------------------------
   def extractSetShAlgebraic(subject: Resource): Check[Set[ShAlgebraic]] = checked(Set.empty)
 
   def extractSetShTest(subject: Resource): Check[Set[ShTest]] =
@@ -289,7 +307,7 @@ final case class ShapeParser() {
   def extractShShapeLabel(statement: Statement): Check[Resource] =
     statement match {
       case Rdf4j.Statement(Rdf4j.Resource(r), _, _) => checked(r)
-      case _ => ??? // already caught by RDF4J turtle parser
+      case _ => ??? // RDF4J turtle parser already catches shape's label that isn't IRI or BNode
     }
 
   def extractShShape(statement: Statement): Check[ShShape] =

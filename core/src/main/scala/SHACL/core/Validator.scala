@@ -9,15 +9,43 @@ class Validator(data: Model, shape: Model) {
 }
 
 object Validator {
-  import org.jsoup.Jsoup
-  import org.jsoup.nodes.Document
-  import com.github.jsonldjava.core.{ DocumentLoader, JsonLdOptions, JsonLdProcessor, RemoteDocument }
-  import com.github.jsonldjava.utils.JsonUtils
-  import java.io.StringReader
 
-  val doc: Document = {
-    val html: String =
-      """
+  // TOOD: implement the complete `def process`
+  def process(data: Model, shape: Model) = {
+    val processor = new Validator(data, shape)
+  }
+  
+
+  def process(shape: Model) = {
+
+    val shapeParser = new ShapeParser(shape)
+    val shSchema = shapeParser.extractShSchema
+    
+    // shapeParser.shape.filter(null, null, null).asScala.toList.foreach(println)
+  
+    println(shSchema)
+  }
+
+  def main(args: Array[String]): Unit = {
+
+    // Test input, will be removed once done testing
+    import org.eclipse.rdf4j.rio._
+    val shape: Model = {
+      val shapeInput = classOf[ShapeParser].getResourceAsStream("/shapeInput.ttl")
+      val shape = Rio.parse(shapeInput, "", RDFFormat.TURTLE)
+      if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+      shape
+    }
+    
+    import org.jsoup.Jsoup
+    import org.jsoup.nodes.Document
+    import com.github.jsonldjava.core.{ DocumentLoader, JsonLdOptions, JsonLdProcessor, RemoteDocument }
+    import com.github.jsonldjava.utils.JsonUtils
+    import java.io.StringReader
+
+    val doc: Document = {
+      val html: String =
+        """
       <html>
         <head></head>
         <body>
@@ -37,47 +65,38 @@ object Validator {
         </body>
       </html>
       """
-    Jsoup.parse(html, "UTF-8")
-  }
+      Jsoup.parse(html, "UTF-8")
+    }
 
-  val data: Model = {
-    val options = {
-      val loader = new DocumentLoader {
-        override def loadDocument(url: String): RemoteDocument = url match {
-          case "http://schema.org" =>
-            val resource = classOf[Validator].getResourceAsStream("/sdo.jsonld")
-            val sdo = JsonUtils.fromInputStream(resource)
-            new RemoteDocument("http://schema.org", sdo)
+    val data: Model = {
+      val options = {
+        val loader = new DocumentLoader {
+          override def loadDocument(url: String): RemoteDocument = url match {
+            case "http://schema.org" =>
+              val resource = classOf[Validator].getResourceAsStream("/sdo.jsonld")
+              val sdo = JsonUtils.fromInputStream(resource)
+              new RemoteDocument("http://schema.org", sdo)
+          }
         }
+        val options = new JsonLdOptions
+        options.setDocumentLoader(loader)
+        options
       }
-      val options = new JsonLdOptions
-      options.setDocumentLoader(loader)
-      options
+      val rdfSink: RdfSink = RdfSink()
+      doc.select("""script[type="application/ld+json"]""").asScala.foreach { scriptElt =>
+        val snippet = scriptElt.html()
+        val reader = new StringReader(snippet)
+        val jsonld = JsonUtils.fromReader(reader)
+        JsonLdProcessor.toRDF(jsonld, rdfSink, options)
+      }
+      rdfSink.model
     }
-    val rdfSink: RdfSink = RdfSink()
-    doc.select("""script[type="application/ld+json"]""").asScala.foreach { scriptElt =>
-      val snippet = scriptElt.html()
-      val reader = new StringReader(snippet)
-      val jsonld = JsonUtils.fromReader(reader)
-      JsonLdProcessor.toRDF(jsonld, rdfSink, options)
-    }
-    rdfSink.model
-  }
+    // ! Test input //
 
-  def process(data: Model, shape: Model) = {
-    val processor = new Validator(data, shape)
-  }
+    process(shape)
 
-  def main(args: Array[String]): Unit = {
-    val shapeParser = new ShapeParser()
-    val shSchema = shapeParser.extractShSchema
-    
-    // shapeParser.shape.filter(null, null, null).asScala.toList.foreach(println)
-  
-    println(shSchema)
-  
-//    shSchema.shapes.foreach(println)
-    // process(data, shape)
   }
 }
+
+
 

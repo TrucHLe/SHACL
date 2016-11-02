@@ -26,10 +26,12 @@ ex:OrganizationShape
 #    sh:path [ sh:alternativePath ( ex:father ex:mother  ) ] ;
 #  ] ;
   sh:property [
-   sh:predicate 1 ;
-#   sh:predicate schema:logo ;
+#   sh:predicate 1 ;
+   sh:path schema:logo ;
 #    sh:predicate schema:thing ;
     sh:class schema:ImageObject ;
+    sh:in (ex:Resolved ex:Rejected 1) ;
+    sh:in 2 ;
   ] ;
   sh:property [
     sh:predicate schema:telephone ;
@@ -37,8 +39,10 @@ ex:OrganizationShape
     sh:minLength 10 ;
     sh:maxLength 12 ;
   ] ;
+#  sh:property 1 ;
   sh:property [
     sh:predicate schema:url ;
     sh:nodeKind sh:IRI ;
-  ]
+  ] ;
+  sh:stem "https://www.w3.org/People/" ;
 .
