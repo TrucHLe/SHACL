@@ -33,16 +33,11 @@ ex:OrganizationShape
     sh:in (ex:Resolved ex:Rejected 1) ;
     sh:in 2 ;
   ] ;
-  sh:property [
-    sh:predicate schema:telephone ;
-    sh:datatype xsd:string ;
-    sh:minLength 10 ;
-    sh:maxLength 12 ;
-  ] ;
+  sh:property [] ;
 #  sh:property 1 ;
   sh:property [
     sh:predicate schema:url ;
-    sh:nodeKind sh:IRI ;
+    sh:maxLength 42 ;
   ] ;
   sh:stem "https://www.w3.org/People/" ;
 .

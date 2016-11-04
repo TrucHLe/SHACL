@@ -17,40 +17,40 @@ object ShapeParserMessages {
   def invalidShConstraint(constraint: String): String =
     s"Invalid `sh:Constraint $constraint`."
 
-  def invalidShpredicate(pred: String): String =
-    s"Invalid `sh:predicate $pred`."
+  val shpredicateMustBeIRI: String =
+    s"`sh:predicate` must be an IRI."
 
-  def invalidShpath(path: String): String =
-    s"Invalid `sh:path $path`."
+  val shpathMustBeIRIOrBlankNode: String =
+    s"`sh:path` must be an IRI or blank node."
 
-  def moreThanOneShpredicate(pred: String): String =
-    s"Found more than one `sh:predicate $pred`."
+  val moreThanOneShpredicate: String =
+    s"Found more than one `sh:predicate`."
 
-  def moreThanOneShpath(path: String): String =
-    s"Found more than one `sh:path $path`."
+  val moreThanOneShpath: String =
+    s"Found more than one `sh:path`."
 
-  def emptyShPathConstraint(sourceShape: String): String =
-    s"Found an empty path constraint of `$sourceShape`."
+  val emptyShproperty: String =
+    s"Empty sh:property."
 
-  val invalidShproperty: String =
-    "Invalid `sh:property`."
+  val shpropertyMustBeIRIOrBlankNode: String =
+    "sh:property must be an IRI or blank node."
 
   val oneOrMoreTriples: String =
     "One or more triples."
 
-  val nodeKindMustBeIRI: String =
-    "`sh:nodeKind` must be an IRI."
+  val shnodeKindMustBeShBlankNodeOrShIRIOrShLiteral: String =
+    "`sh:nodeKind` must be sh:BlankNode, sh:IRI, or sh:Literal."
 
-  val classMustBeIRI: String =
+  val shclassMustBeIRI: String =
     "`sh:class` must be an IRI."
 
-  val datatypeMustBeIRI: String =
+  val shdatatypeMustBeIRI: String =
     "`sh:datatype` must be an IRI."
 
-  val minLengthMustBeNumber: String =
+  val shminLengthMustBeNumber: String =
     "`sh:minLength` must be a number."
 
-  val maxLengthMustBeNumber: String =
+  val shmaxLengthMustBeNumber: String =
     "`sh:maxLength` must be a number."
 
 

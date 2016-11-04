@@ -1,6 +1,8 @@
 package SHACL
 package core
 
+import CheckAbstraction.Check
+import model.ShSchema
 import org.eclipse.rdf4j.model.Model
 import scala.collection.JavaConverters._
 
@@ -16,19 +18,19 @@ object Validator {
   }
   
 
-  def process(shape: Model) = {
-
+  def getShSchema(shape: Model): Check[ShSchema] = {
     val shapeParser = new ShapeParser(shape)
     val shSchema = shapeParser.extractShSchema
-    
-    // shapeParser.shape.filter(null, null, null).asScala.toList.foreach(println)
-  
+
+    // shapeParser.shape.filter(null, null, null).asScala.toList.foreach(println)  
     println(shSchema)
+
+    shSchema
   }
 
   def main(args: Array[String]): Unit = {
 
-    // Test input, will be removed once done testing
+    // Test shape graph, will be removed once done testing
     import org.eclipse.rdf4j.rio._
     val shape: Model = {
       val shapeInput = classOf[ShapeParser].getResourceAsStream("/shapeInput.ttl")
@@ -36,13 +38,14 @@ object Validator {
       if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
       shape
     }
-    
+    // !Test shape graph
+
+    // Test data graph, will be removed once done testing
     import org.jsoup.Jsoup
     import org.jsoup.nodes.Document
     import com.github.jsonldjava.core.{ DocumentLoader, JsonLdOptions, JsonLdProcessor, RemoteDocument }
     import com.github.jsonldjava.utils.JsonUtils
     import java.io.StringReader
-
     val doc: Document = {
       val html: String =
         """
@@ -91,9 +94,9 @@ object Validator {
       }
       rdfSink.model
     }
-    // ! Test input //
+    // !Test data graph //
 
-    process(shape)
+    getShSchema(shape)
 
   }
 }

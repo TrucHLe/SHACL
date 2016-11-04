@@ -38,20 +38,12 @@ final case class ShapeParser(shape: Model) {
   def extractSetShTargetSubjectsOf(subject: Resource): Check[Set[ShTargetNode]] = checked(Set.empty)
   def extractSetShTargetObjectsOf(subject: Resource): Check[Set[ShTargetNode]] = checked(Set.empty)
 
-  def extractSetShTarget(subject: Resource): Check[Set[ShTarget]] =
-    Apply[Check].map4(
-      extractSetShTargetNode(subject),
-      extractSetShTargetClass(subject),
-      extractSetShTargetSubjectsOf(subject),
-      extractSetShTargetObjectsOf(subject)
-    )((s1, s2, s3, s4) => s1 ++ s2 ++ s3 ++ s4)
-
-  // TODO
-  def extractSetShFilterShape(subject: Resource): Check[Set[ShShape]] = checked(Set.empty)
 
   def extractShPNodeKind(sourceShape: Resource, focusNode: Resource, value: Value): Check[ShPNodeKind] =
     value match {
-      case iri: IRI => checked(new ShPNodeKind(iri))
+      case Rdf4j.IRI(SH.BlankNode) => checked(new ShPNodeKind(SH.BlankNode))
+      case Rdf4j.IRI(SH.IRI) => checked(new ShPNodeKind(SH.IRI))
+      case Rdf4j.IRI(SH.Literal) => checked(new ShPNodeKind(SH.Literal))
       case v =>
         violation(
           focusNode,
@@ -60,7 +52,7 @@ final case class ShapeParser(shape: Model) {
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShIRI),
           None,
-          Some(nodeKindMustBeIRI))
+          Some(shnodeKindMustBeShBlankNodeOrShIRIOrShLiteral))
     }
 
   def extractShPIn(value: Value): Check[ShPIn] =
@@ -81,7 +73,7 @@ final case class ShapeParser(shape: Model) {
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShIRI),
           None,
-          Some(classMustBeIRI)
+          Some(shclassMustBeIRI)
         )
     }
 
@@ -96,7 +88,7 @@ final case class ShapeParser(shape: Model) {
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShIRI),
           None,
-          Some(datatypeMustBeIRI)
+          Some(shdatatypeMustBeIRI)
         )
     }
 
@@ -111,7 +103,7 @@ final case class ShapeParser(shape: Model) {
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShLiteral),
           None,
-          Some(minLengthMustBeNumber)
+          Some(shminLengthMustBeNumber)
         )
     }
 
@@ -126,7 +118,7 @@ final case class ShapeParser(shape: Model) {
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShLiteral),
           None,
-          Some(maxLengthMustBeNumber)
+          Some(shmaxLengthMustBeNumber)
         )
     }
 
@@ -191,42 +183,42 @@ final case class ShapeParser(shape: Model) {
             Apply[Check].map(
               extractSetShParameter(sourceShape, focusNode)
             )(s => new ShPathConstraint(ShPredicatePath, s))
-          case Rdf4j.Statement(_, _, Rdf4j.IRI(pred)) :: _ =>
+          case Rdf4j.Statement(_, _, Rdf4j.IRI(_)) :: _ =>
             violation(
               focusNode,
               Some(SH.predicate),
-              Some(pred),
+              None,
               Some(sourceShape),
               new ShMaxCountConstraintComponent(1),
               None,
-              Some(moreThanOneShpredicate(pred.toString)))
+              Some(moreThanOneShpredicate))
           case Nil =>
             shape.filter(focusNode, SH.path, null).asScala.toList match {
               case Rdf4j.Statement(_, _, Rdf4j.IRI(path)) :: Nil =>
                 Apply[Check].map(
                   extractSetShParameter(sourceShape, focusNode)
                 )(s => new ShPathConstraint(ShPredicatePath, s))
-              case Rdf4j.Statement(_, _, Rdf4j.IRI(path)) :: _ =>
+              case Rdf4j.Statement(_, _, Rdf4j.IRI(_)) :: _ =>
                 violation(
                   focusNode,
                   Some(SH.path),
-                  Some(path),
+                  None,
                   Some(sourceShape),
                   new ShMaxCountConstraintComponent(1),
                   None,
-                  Some(moreThanOneShpath(path.toString)))
+                  Some(moreThanOneShpath))
               // NOTE: does not support SPARQL path constraints
               case Rdf4j.Statement(_, _, Rdf4j.BNode(path)) :: Nil =>
                 checked(new ShPathConstraint(ShPredicatePath, Set.empty))
-              case Rdf4j.Statement(_, _, Rdf4j.BNode(path)) :: _ =>
+              case Rdf4j.Statement(_, _, Rdf4j.BNode(_)) :: _ =>
                 violation(
                   focusNode,
                   Some(SH.path),
-                  Some(path),
+                  None,
                   Some(sourceShape),
                   new ShMaxCountConstraintComponent(1),
                   None,
-                  Some(moreThanOneShpath(path.toString)))
+                  Some(moreThanOneShpath))
               case Rdf4j.Statement(_, _, Rdf4j.Value(value)) :: _ =>
                 violation(
                   focusNode,
@@ -235,7 +227,7 @@ final case class ShapeParser(shape: Model) {
                   Some(sourceShape),
                   new ShNodeKindConstraintComponent(ShBlankNodeOrIRI),
                   None,
-                  Some(invalidShpath(value.toString)))
+                  Some(shpathMustBeIRIOrBlankNode))
               case _ =>
                 violation(
                   focusNode,
@@ -244,7 +236,7 @@ final case class ShapeParser(shape: Model) {
                   Some(sourceShape),
                   new ShHasValueConstraintComponent(oneOrMoreTriples),
                   None,
-                  Some(emptyShPathConstraint(sourceShape.toString)))
+                  Some(emptyShproperty))
             }
           case Rdf4j.Statement(_, _, Rdf4j.Value(value)) :: _ =>
             violation(
@@ -252,9 +244,9 @@ final case class ShapeParser(shape: Model) {
               Some(SH.predicate),
               Some(value),
               Some(sourceShape),
-              new ShNodeKindConstraintComponent(ShBlankNodeOrIRI),
+              new ShNodeKindConstraintComponent(ShIRI),
               None,
-              Some(invalidShpredicate(value.toString)))
+              Some(shpredicateMustBeIRI))
         }
       case _ =>
         violation(
@@ -262,9 +254,9 @@ final case class ShapeParser(shape: Model) {
           Some(SH.property),
           None,
           Some(sourceShape),
-          new ShNodeKindConstraintComponent(ShBlankNode),
+          new ShNodeKindConstraintComponent(ShBlankNodeOrIRI),
           None,
-          Some(invalidShproperty))
+          Some(shpropertyMustBeIRIOrBlankNode))
     }
 
 
@@ -295,20 +287,31 @@ final case class ShapeParser(shape: Model) {
       extractSetShPathConstraint(subject)
     )((s1, s2) => s1 ++ s2)
 
-  // TODO ---------------------------------------------------------
+  // TODO
   def extractSetShAlgebraic(subject: Resource): Check[Set[ShAlgebraic]] = checked(Set.empty)
-
-  def extractSetShTest(subject: Resource): Check[Set[ShTest]] =
-    Apply[Check].map2(
-      extractSetShConstraint(subject),
-      extractSetShAlgebraic(subject)
-    )((s1, s2) => s1 ++ s2)
 
   def extractShShapeLabel(statement: Statement): Check[Resource] =
     statement match {
       case Rdf4j.Statement(Rdf4j.Resource(r), _, _) => checked(r)
       case _ => ??? // RDF4J turtle parser already catches shape's label that isn't IRI or BNode
     }
+
+  def extractSetShTarget(subject: Resource): Check[Set[ShTarget]] =
+    Apply[Check].map4(
+      extractSetShTargetNode(subject),
+      extractSetShTargetClass(subject),
+      extractSetShTargetSubjectsOf(subject),
+      extractSetShTargetObjectsOf(subject)
+    )((s1, s2, s3, s4) => s1 ++ s2 ++ s3 ++ s4)
+
+  // TODO
+  def extractSetShFilterShape(subject: Resource): Check[Set[ShShape]] = checked(Set.empty)
+
+  def extractSetShTest(subject: Resource): Check[Set[ShTest]] =
+    Apply[Check].map2(
+      extractSetShConstraint(subject),
+      extractSetShAlgebraic(subject)
+    )((s1, s2) => s1 ++ s2)
 
   def extractShShape(statement: Statement): Check[ShShape] =
     extractShShapeLabel(statement).andThen { label =>
