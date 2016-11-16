@@ -1,3 +1,8 @@
+/*
+ * W3C Shapes Constraint Language (SHACL) Vocabulary
+ * Draft last edited 2016-09-22
+ */
+
 package SHACL
 package vocabulary
 
@@ -7,7 +12,7 @@ object SH {
 
   val sh: String = "http://www.w3.org/ns/shacl#"
 
-  /* Shapes vocabulary */
+  /*** Shapes vocabulary ***/
 
   val Constraint: IRI = createIRI(sh, "Constraint")
   val Shape: IRI = createIRI(sh, "Shape")
@@ -51,21 +56,62 @@ object SH {
   val value: IRI = createIRI(sh, "value")
 
 
-  /* Target vocabulary */
+  /*** SPARQL execution support ***/
+
+  val SPARQLExecutable: IRI = createIRI(sh, "SPARQLExecutable")
+  val SPARQLAskExecutable: IRI = createIRI(sh, "SPARQLAskExecutable")
+  val ask: IRI = createIRI(sh, "ask")
+  val SPARQLConstructExecutable: IRI = createIRI(sh, "SPARQLConstructExecutable")
+  val construct: IRI = createIRI(sh, "construct")
+  val SPARQLSelectExecutable: IRI = createIRI(sh, "SPARQLSelectExecutable")
+  val select: IRI = createIRI(sh, "select")
+  val SPARQLUpdateExecutable: IRI = createIRI(sh, "SPARQLUpdateExecutable")
+  val update: IRI = createIRI(sh, "update")
+  val prefixes: IRI = createIRI(sh, "prefixes")
+  val PrefixDeclaration: IRI = createIRI(sh, "PrefixDeclaration")
+  val declare: IRI = createIRI(sh, "declare")
+  val prefix: IRI = createIRI(sh, "prefix")
+  val namespace: IRI = createIRI(sh, "namespace")
 
 
-  /* Path vocabulary */
+  /*** Target vocabulary ***/
+
+  val Target: IRI = createIRI(sh, "Target")
+  val SPARQLTarget: IRI = createIRI(sh, "SPARQLTarget")
+  val TargetType: IRI = createIRI(sh, "TargetType")
+  val SPARQLTargetType: IRI = createIRI(sh, "SPARQLTargetType")
+
+
+  /*** Path vocabulary ***/
 
   val path: IRI = createIRI(sh, "path")
+  val inversePath: IRI = createIRI(sh, "inversePath")
+  val alternativePath: IRI = createIRI(sh, "alternativePath")
+  val zeroOrMorePath: IRI = createIRI(sh, "zeroOrMorePath")
+  val oneOrMorePath: IRI = createIRI(sh, "oneOrMorePath")
+  val zeroOrOnePath: IRI = createIRI(sh, "zeroOrOnePath")
 
 
-  /* Parameters metamodel */
+  /*** Parameters metamodel ***/
+
+  val Parameterizable: IRI = createIRI(sh, "Parameterizable")
+  val parameter: IRI = createIRI(sh, "parameter")
+  val labelTemplate: IRI = createIRI(sh, "labelTemplate")
+  val Parameter: IRI = createIRI(sh, "Parameter")
+  val optional: IRI = createIRI(sh, "optional")
 
 
-  /* Constraint components metamodel */
+  /*** Constraint components metamodel ***/
 
   val ConstraintComponent: IRI = createIRI(sh, "ConstraintComponent")
-
+  val validator: IRI = createIRI(sh, "validator")
+  val shapeValidator: IRI = createIRI(sh, "shapeValidator")
+  val propertyValidator: IRI = createIRI(sh, "propertyValidator")
+  val Validator: IRI = createIRI(sh, "Validator")
+  val SPARQLAskValidator: IRI = createIRI(sh, "SPARQLAskValidator")
+  val SPARQLSelectValidator: IRI = createIRI(sh, "SPARQLSelectValidator")
+  val SPARQLConstraint: IRI = createIRI(sh, "SPARQLConstraint")
+  val sparql: IRI = createIRI(sh, "sparql")
 
   /*** Library of core constraint components and their properties ***/
 
@@ -130,14 +176,37 @@ object SH {
   val uniqueLang: IRI = createIRI(sh, "uniqueLang")
 
 
-  /*** Derived values support: Not Implemented ***/
+  /*** Derived values support ***/
+
+  val DerivedValuesConstraintComponent: IRI = createIRI(sh, "DerivedValuesConstraintComponent")
+  val derivedValues: IRI = createIRI(sh, "derivedValues")
+  val ValuesDeriver: IRI = createIRI(sh, "ValuesDeriver")
+  val SPARQLValuesDeriver: IRI = createIRI(sh, "SPARQLValuesDeriver")
 
 
-  /* Non-validating constraint properties */
+  /*** Non-validating constraint properties ***/
+
+  val defaultValue: IRI = createIRI(sh, "defaultValue")
+  val description: IRI = createIRI(sh, "description")
+  val group: IRI = createIRI(sh, "group")
+  val name: IRI = createIRI(sh, "name")
+  val order: IRI = createIRI(sh, "order")
+  val PropertyGroup: IRI = createIRI(sh, "PropertyGroup")
 
 
-  /* Functions vocabulary */
+  /*** Functions vocabulary ***/
+
+  val Function: IRI = createIRI(sh, "Function")
+  val returnType: IRI = createIRI(sh, "returnType")
+  val SPARQLFunction: IRI = createIRI(sh, "SPARQLFunction")
+  val hasShape: IRI = createIRI(sh, "hasShape")
 
 
-  /* Result annotations */
+  /*** Result annotations ***/
+
+  val resultAnnotation: IRI = createIRI(sh, "resultAnnotation")
+  val ResultAnnotation: IRI = createIRI(sh, "ResultAnnotation")
+  val annotationProperty: IRI = createIRI(sh, "annotationProperty")
+  val annotationValue: IRI = createIRI(sh, "annotationValue")
+  val annotationVarName: IRI = createIRI(sh, "annotationVarName")
 }

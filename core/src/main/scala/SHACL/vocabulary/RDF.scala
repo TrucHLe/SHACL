@@ -23,4 +23,5 @@ object RDF {
   val value: IRI = createIRI(rdf, "value")
   val first: IRI = createIRI(rdf, "first")
   val rest: IRI = createIRI(rdf, "rest")
+  val nil: IRI = createIRI(rdf, "nil")
 }

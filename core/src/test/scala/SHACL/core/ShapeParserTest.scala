@@ -537,7 +537,7 @@ class ShapeParserTest extends WordSpec {
       val ShPathConstraint(_, parms) = shapes.head.constraints.head
       assert(Set(ShPMinLength(24), ShPMaxLength(42)) == parms)
     }
-    "return violation if there is one violation" in {
+    "return violation if there is 1 violation" in {
       val shape: Model = {
         val snippet: String =
           """
@@ -560,7 +560,7 @@ class ShapeParserTest extends WordSpec {
       val Invalid(ShValidationResult(_, _, _, _, _, _, msg, _)) = Validator.getShSchema(shape)
       assert(Some(shminLengthMustBeNumber) == msg)
     }
-    "return accumulated violations if there are more than one violation" in {
+    "return accumulated violations if there are more than 1 violation" in {
       val shape: Model = {
         val snippet: String =
           """
@@ -596,10 +596,10 @@ class ShapeParserTest extends WordSpec {
     "return a set of n-ary parameters" in {
 
     }
-    "return violation if there is one violation" in {
+    "return violation if there is 1 violation" in {
 
     }
-    "return accumulated violations if there are more than one violation" in {
+    "return accumulated violations if there are more than 1 violation" in {
 
     }
   }
@@ -611,10 +611,10 @@ class ShapeParserTest extends WordSpec {
     "return a set of unary and n-ary parameters" in {
 
     }
-    "return violation if there is one violation" in {
+    "return violation if there is 1 violation" in {
 
     }
-    "return accumulated violations if there are more than one violation" in {
+    "return accumulated violations if there are more than 1 violation" in {
 
     }
   }
@@ -853,7 +853,44 @@ class ShapeParserTest extends WordSpec {
   /*** extractSetShPathConstraint ***/
 
   "extractSetShPathConstraint" should {
+    "return a set of path constraints" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:predicate ex:state ;
+              sh:nodeKind sh:IRI ;
+            ] ;
+            sh:property [
+              sh:path ex:status ;
+              sh:nodeKind sh:IRI ;
+            ] ;
+            sh:property [
+              sh:predicate ex:stat ;
+              sh:nodeKind sh:IRI ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
+      val setShPathConstraints = shapes.head.constraints
+//      assert(Set(ShPathConstraint(ShPredicatePath, Set(_))) == setShPathConstraints)
+// Bamboo TODO
+    }
+    "return violation if there is 1 violation" in {
 
+    }
+    "return accumulated violations if there are more than 1 violation" in {
+
+    }
   }
 
 

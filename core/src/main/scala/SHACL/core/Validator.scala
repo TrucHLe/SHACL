@@ -22,8 +22,8 @@ object Validator {
     val shapeParser = new ShapeParser(shape)
     val shSchema = shapeParser.extractShSchema
 
-    // shapeParser.shape.filter(null, null, null).asScala.toList.foreach(println)  
-    println(shSchema)
+    shapeParser.shape.filter(null, null, null).asScala.toList.foreach(println)  
+    // println(shSchema)
 
     shSchema
   }

@@ -17,27 +17,16 @@ ex:
 
 ex:OrganizationShape
   a sh:Shape ;
-  sh:targetNode ex:Organization ;
-#  sh:property [
-#    sh:path ex:bamboo ;
-#    sh:path (ex:knows ex:email) ;
-#    sh:path [ sh:inversePath ex:parent ];
-#    sh:path ( rdf:type [ sh:oneOrMorePath rdfs:subClassOf ] ) ;
-#    sh:path [ sh:alternativePath ( ex:father ex:mother  ) ] ;
-#  ] ;
   sh:property [
-#   sh:predicate 1 ;
-   sh:path schema:logo ;
-#    sh:predicate schema:thing ;
-    sh:class schema:ImageObject ;
-    sh:in (ex:Resolved ex:Rejected 1) ;
-    sh:in 2 ;
+    sh:path () ;
+    sh:nodeKind sh:Literal ;
   ] ;
-  sh:property [] ;
-#  sh:property 1 ;
   sh:property [
-    sh:predicate schema:url ;
-    sh:maxLength 42 ;
+    sh:path ex:status ;
+    sh:nodeKind sh:Literal ;
   ] ;
-  sh:stem "https://www.w3.org/People/" ;
+  sh:property [
+    sh:predicate ex:stat ;
+    sh:nodeKind sh:IRI ;
+  ]
 .
