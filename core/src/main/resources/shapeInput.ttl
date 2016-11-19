@@ -17,16 +17,5 @@ ex:
 
 ex:OrganizationShape
   a sh:Shape ;
-  sh:property [
-    sh:path () ;
-    sh:nodeKind sh:Literal ;
-  ] ;
-  sh:property [
-    sh:path ex:status ;
-    sh:nodeKind sh:Literal ;
-  ] ;
-  sh:property [
-    sh:predicate ex:stat ;
-    sh:nodeKind sh:IRI ;
-  ]
+  sh:property [] ;
 .

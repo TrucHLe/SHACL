@@ -2,14 +2,13 @@ package SHACL
 package core
 
 import java.io.StringReader
-import org.eclipse.rdf4j.model.Model
+import org.eclipse.rdf4j.model.{ IRI, Literal, Model }
 import org.eclipse.rdf4j.rio.{ RDFFormat, Rio }
 import org.scalatest.WordSpec
 import cats.data.Validated.{ Valid, Invalid }
 import messages.ShapeParserMessages._
 import core.RdfSink.factory.{ createIRI, createLiteral }
-import vocabulary.SH
-import vocabulary.XSD
+import vocabulary.{ SH, XSD, RDF }
 import model.ShSchema
 import model.ShConstraint._
 import model.ShUnaryParameter._
@@ -21,11 +20,17 @@ import model.ShPropertyPath._
 
 class ShapeParserTest extends WordSpec {
   val ex: String = "http://www.example.org/ex#"
+  val exRed: IRI = createIRI(ex, "Red")
+  val exYellow: IRI = createIRI(ex, "Yellow")
+  val exGreen: IRI = createIRI(ex, "Green")
+  val exStat: IRI = createIRI(ex, "stat")
+  val exState: IRI = createIRI(ex, "state")
+  val exStatus: IRI = createIRI(ex, "status")
+  val literal24: Literal = createLiteral("24", XSD.integer)
+  val literal42: Literal = createLiteral("42", XSD.integer)
 
-  /*** extractFirstRestList  ***/
-
-  "extractFirstRestList" should {
-    "return a set of all listed elements" in {
+  "extractValueList" should {
+    "return a value set of all elements" in {
       val shape: Model = {
         val snippet: String =
           """
@@ -47,16 +52,182 @@ class ShapeParserTest extends WordSpec {
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(_, parms) = shapes.head.constraints.head
       val ShPIn(in) = parms.head
-      assert(Set(createIRI(ex, "Red"), createIRI(ex, "Yellow"), createIRI(ex, "Green")) == in)
+      assert(Set(exRed, exYellow, exGreen) == in)
+    }
+  }
+
+  "extractIRIPair" should {
+    "return an IRI pair" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:alternativePath (ex:Red ex:Green) ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
+      val ShPathConstraint(ShAlternativePath(first, last), _) = shapes.head.constraints.head
+      assert(exRed == first)
+      assert(exGreen == last)
+    }
+    "return violation if the first IRI is rdf:nil" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:alternativePath (rdf:nil ex:Green) ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, _, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(RDF.first == path)
+      assert(RDF.nil == value)
+      assert(shPathMustNotBeRDFnil == msg)
+    }
+    "return violation if there is one IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:alternativePath (ex:Red) ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, _, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(RDF.rest == path)
+      assert(RDF.nil == value)
+      assert(expectingTwoIRIsFoundOne == msg)
+    }
+    "return violation if the first is not an IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:alternativePath (42) ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, _, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(RDF.first == path)
+      assert(literal42 == value)
+      assert(rdfFirstMustBeIRI == msg)
+    }
+    "return violation if the second IRI is rdf:nil" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:alternativePath (ex:Red rdf:nil) ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, _, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(RDF.first == path)
+      assert(RDF.nil == value)
+      assert(shPathMustNotBeRDFnil == msg)
+    }
+    "return violation if there is more than two IRIs" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:alternativePath (ex:Red ex:Green ex:Yellow) ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), _, _, _, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(RDF.rest == path)
+      assert(expectingTwoIRIsFoundMoreThanTwo == msg)
+    }
+    "return violation if the second is not an IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:alternativePath (ex:Red 42) ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, _, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(RDF.first == path)
+      assert(literal42 == value)
+      assert(rdfFirstMustBeIRI == msg)
     }
   }
 
 
-
   // TODO: fill in missing tests
 
-
-  /*** extractShPNodeKind ***/
 
   "extractShPNodeKind" should {
     "return an sh:nodeKind that is sh:BlankNode" in {
@@ -150,19 +321,40 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, value, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.nodeKind) == path)
-      assert(Some(createIRI(ex, "Red")) == value)
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.nodeKind == path)
+      assert(exRed == value)
       assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
-      assert(Some(shnodeKindMustBeShBlankNodeOrShIRIOrShLiteral) == msg)
-      assert(ShViolation == severity)
+      assert(shNodeKindMustBeShBlankNodeOrShIRIOrShLiteral == msg)
     }
   }
 
-
-  /*** extractShPIn ***/
-
   "extractShPIn" should {
+    "return violation if sh:in is rdf:nil or empty" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:predicate ex:state ;
+              sh:in () ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.in == path)
+      assert(RDF.nil == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shInMustHaveOneOrMoreValues == msg)
+    }
     "return an sh:in that is an IRI" in {
       val shape: Model = {
         val snippet: String =
@@ -185,7 +377,7 @@ class ShapeParserTest extends WordSpec {
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(_, parms) = shapes.head.constraints.head
       val ShPIn(in) = parms.head
-      assert(Set(createIRI(ex, "Green")) == in)
+      assert(Set(exGreen) == in)
     }
     "return an sh:in that is a literal" in {
       val shape: Model = {
@@ -209,7 +401,7 @@ class ShapeParserTest extends WordSpec {
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(_, parms) = shapes.head.constraints.head
       val ShPIn(in) = parms.head
-      assert(Set(createLiteral("42", XSD.integer)) == in)
+      assert(Set(literal42) == in)
     }
     "return an sh:in that is a set of IRI" in {
       val shape: Model = {
@@ -233,7 +425,7 @@ class ShapeParserTest extends WordSpec {
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(_, parms) = shapes.head.constraints.head
       val ShPIn(in) = parms.head
-      assert(Set(createIRI(ex, "Red"), createIRI(ex, "Green")) == in)
+      assert(Set(exRed, exGreen) == in)
     }
     "return an sh:in that is a set of literal" in {
       val shape: Model = {
@@ -257,7 +449,7 @@ class ShapeParserTest extends WordSpec {
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(_, parms) = shapes.head.constraints.head
       val ShPIn(in) = parms.head
-      assert(Set(createLiteral("24", XSD.integer), createLiteral("42", XSD.integer)) == in)
+      assert(Set(literal24, literal42) == in)
     }
     "return an sh:in that is a set of IRI and literal" in {
       val shape: Model = {
@@ -281,14 +473,36 @@ class ShapeParserTest extends WordSpec {
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(_, parms) = shapes.head.constraints.head
       val ShPIn(in) = parms.head
-      assert(Set(createIRI(ex, "Green"), createLiteral("42", XSD.integer)) == in)
+      assert(Set(exGreen, literal42) == in)
     }
   }
 
-
-  /*** extractShPClass ***/
-
   "extractShPClass" should {
+    "return violation if sh:class is rdf:nil or empty" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:predicate ex:state ;
+              sh:class () ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.clss == path)
+      assert(RDF.nil == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shClassMustNotBeRDFnil == msg)
+    }
     "return an sh:class that is an IRI" in {
       val shape: Model = {
         val snippet: String =
@@ -311,7 +525,7 @@ class ShapeParserTest extends WordSpec {
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(_, parms) = shapes.head.constraints.head
       val ShPClass(t) = parms.head
-      assert(createIRI(ex, "Green") == t)
+      assert(exGreen == t)
     }
     "return violation if sh:class is not an IRI" in {
       val shape: Model = {
@@ -332,19 +546,40 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, value, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.clss) == path)
-      assert(Some(createLiteral("42", XSD.integer)) == value)
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.clss == path)
+      assert(literal42 == value)
       assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
-      assert(Some(shclassMustBeIRI) == msg)
-      assert(ShViolation == severity)
+      assert(shClassMustBeIRI == msg)
     }
   }
 
-
-  /*** extractShPDatatype ***/
-
   "extractShPDatatype" should {
+    "return violation if sh:datatype is rdf:nil or empty" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:predicate ex:state ;
+              sh:datatype () ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.datatype == path)
+      assert(RDF.nil == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shDatatypeMustNotBeRDFnil == msg)
+    }
     "return an sh:datatype that is an IRI" in {
       val shape: Model = {
         val snippet: String =
@@ -367,7 +602,7 @@ class ShapeParserTest extends WordSpec {
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(_, parms) = shapes.head.constraints.head
       val ShPDatatype(dt) = parms.head
-      assert(createIRI(ex, "Green") == dt)
+      assert(exGreen == dt)
     }
     "return violation if sh:datatype is not an IRI" in {
       val shape: Model = {
@@ -388,17 +623,13 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, value, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.datatype) == path)
-      assert(Some(createLiteral("42", XSD.integer)) == value)
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.datatype == path)
+      assert(literal42 == value)
       assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
-      assert(Some(shdatatypeMustBeIRI) == msg)
-      assert(ShViolation == severity)
+      assert(shDatatypeMustBeIRI == msg)
     }
   }
-
-
-  /*** extractShPMinLength ***/
 
   "extractShPMinLength" should {
     "return an sh:minLength that is a number" in {
@@ -444,17 +675,13 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, value, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.minLength) == path)
-      assert(Some(createIRI(ex, "Green")) == value)
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.minLength == path)
+      assert(exGreen == value)
       assert(ShNodeKindConstraintComponent(ShLiteral) == conCom)
-      assert(Some(shminLengthMustBeNumber) == msg)
-      assert(ShViolation == severity)
+      assert(shMinLengthMustBeNumber == msg)
     }
   }
-
-
-  /*** extractShPMaxLength ***/
 
   "extractShPMaxLength" should {
     "return an sh:maxLength that is a number" in {
@@ -500,17 +727,13 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, value, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.maxLength) == path)
-      assert(Some(createIRI(ex, "Green")) == value)
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.maxLength == path)
+      assert(exGreen == value)
       assert(ShNodeKindConstraintComponent(ShLiteral) == conCom)
-      assert(Some(shmaxLengthMustBeNumber) == msg)
-      assert(ShViolation == severity)
+      assert(shMaxLengthMustBeNumber == msg)
     }
   }
-
-
-  /*** extractSetShUnaryParameter ***/
 
   "extractSetShUnaryParameter" should {
     "return a set of unary parameters" in {
@@ -557,8 +780,8 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, _, _, _, _, _, msg, _)) = Validator.getShSchema(shape)
-      assert(Some(shminLengthMustBeNumber) == msg)
+      val Invalid(ShValidationResult(_, _, _, _, _, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(shMinLengthMustBeNumber == msg)
     }
     "return accumulated violations if there are more than 1 violation" in {
       val shape: Model = {
@@ -581,16 +804,14 @@ class ShapeParserTest extends WordSpec {
         shape
       }
       val Invalid(ShValidationResults(Vector(
-        ShValidationResult(_, _, _, _, _, _, msg1, _),
-        ShValidationResult(_, _, _, _, _, _, msg2, _)
+        ShValidationResult(_, _, _, _, _, _, Some(msg1), _),
+        ShValidationResult(_, _, _, _, _, _, Some(msg2), _)
       ))) = Validator.getShSchema(shape)
-      assert(Some(shminLengthMustBeNumber) == msg1)
-      assert(Some(shmaxLengthMustBeNumber) == msg2)
+      assert(shMinLengthMustBeNumber == msg1)
+      assert(shMaxLengthMustBeNumber == msg2)
     }
   }
 
-
-  /*** extractSetShNaryParameter ***/
   // TODO
   "extractSetShNaryParameter" should {
     "return a set of n-ary parameters" in {
@@ -604,8 +825,6 @@ class ShapeParserTest extends WordSpec {
     }
   }
 
-
-  /*** extractSetShParameter ***/
   // TODO after completing extractSetShNaryParameter
   "extractSetShParameter" should {
     "return a set of unary and n-ary parameters" in {
@@ -619,11 +838,8 @@ class ShapeParserTest extends WordSpec {
     }
   }
 
-
-  /*** extractShPathConstraint ***/
-
-  "extractShPathConstraint" should {
-    "return an sh:predicate that is an IRI" in {
+  "extractSequencePath" should {
+    "return an sh:sequencePath" in {
       val shape: Model = {
         val snippet: String =
           """
@@ -632,8 +848,7 @@ class ShapeParserTest extends WordSpec {
           ex:Shape
             a sh:Shape ;
             sh:property [
-              sh:predicate ex:state ;
-              sh:nodeKind sh:IRI ;
+              sh:path (ex:state ex:status) ;
             ]
           .
           """
@@ -644,9 +859,12 @@ class ShapeParserTest extends WordSpec {
       }
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(path, _) = shapes.head.constraints.head
-      assert(ShPredicatePath == path)
+      assert(ShSequencePath(exState, exStatus) == path)
     }
-    "prioritize returning an sh:predicate over an sh:path" in {
+  }
+
+  "extractZeroOneOrMorePath" should {
+    "return violation if sh:zeroOrMorePath is rdf:nil or empty" in {
       val shape: Model = {
         val snippet: String =
           """
@@ -655,9 +873,31 @@ class ShapeParserTest extends WordSpec {
           ex:Shape
             a sh:Shape ;
             sh:property [
-              sh:path ex:status ;
-              sh:predicate ex:state ;
-              sh:nodeKind sh:IRI ;
+              sh:path (rdf:type [sh:zeroOrMorePath ()]) ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.zeroOrMorePath == path)
+      assert(RDF.nil == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shZeroOrMorePathMustNotBeRDFnil == msg)
+    }
+    "return an sh:zeroOrMorePath that is an IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path (rdf:type [sh:zeroOrMorePath ex:state]) ;
             ]
           .
           """
@@ -668,9 +908,9 @@ class ShapeParserTest extends WordSpec {
       }
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(path, _) = shapes.head.constraints.head
-      assert(ShPredicatePath == path)
+      assert(ShZeroOrMorePath(exState) == path)
     }
-    "return violation if a node has more than 1 sh:predicate" in {
+    "return violation if sh:zeroOrMorePath is not an IRI" in {
       val shape: Model = {
         val snippet: String =
           """
@@ -679,9 +919,7 @@ class ShapeParserTest extends WordSpec {
           ex:Shape
             a sh:Shape ;
             sh:property [
-              sh:predicate ex:status ;
-              sh:predicate ex:state ;
-              sh:nodeKind sh:IRI ;
+              sh:path (rdf:type [sh:zeroOrMorePath 42]) ;
             ]
           .
           """
@@ -690,11 +928,275 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, _, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.predicate) == path)
-      assert(ShMaxCountConstraintComponent(1) == conCom)
-      assert(Some(moreThanOneShpredicate) == msg)
-      assert(ShViolation == severity)
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.zeroOrMorePath == path)
+      assert(literal42 == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shZeroOrMorePathMustBeIRI == msg)
+    }
+    "return violation if sh:oneOrMorePath is rdf:nil or empty" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path (rdf:type [sh:oneOrMorePath ()]) ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.oneOrMorePath == path)
+      assert(RDF.nil == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shOneOrMorePathMustNotBeRDFnil == msg)
+    }
+    "return an sh:oneOrMorePath that is an IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path (rdf:type [sh:oneOrMorePath ex:state]) ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
+      val ShPathConstraint(path, _) = shapes.head.constraints.head
+      assert(ShOneOrMorePath(exState) == path)
+    }
+    "return violation if sh:oneOrMorePath is not an IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path (rdf:type [sh:oneOrMorePath (ex:Red ex:Green)]) ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), _, _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.oneOrMorePath == path)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shOneOrMorePathMustBeIRI == msg)
+    }
+    "return violation if path is not sh:zeroOrMorePath or sh:oneOrMorePath" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path (rdf:type [ex:state ex:Red]) ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(RDF.ty == path)
+      assert(exState == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(invalidSPARQLpath == msg)
+    }
+    "return violation if node has no path name" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path (rdf:type []) ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), _, _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(RDF.ty == path)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(expectingPathNameFoundNone == msg)
+    }
+  }
+
+  "extractAlternativePath" should {
+    "return an sh:alternativePath that is a blank node" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:alternativePath (ex:Red ex:Green) ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
+      val ShPathConstraint(path, _) = shapes.head.constraints.head
+      assert(ShAlternativePath(exRed, exGreen) == path)
+    }
+    "return violation if sh:alternativePath is not a blank node" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:alternativePath ex:Red ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.alternativePath == path)
+      assert(exRed == value)
+      assert(ShNodeKindConstraintComponent(ShBlankNode) == conCom)
+      assert(shAlternativePathMustBeBNode == msg)
+    }
+  }
+
+  "extractInversePath" should {
+    "return violation if sh:inversePath is rdf:nil or empty" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:inversePath () ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.inversePath == path)
+      assert(RDF.nil == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shInversePathMustNotBeRDFnil == msg)
+    }
+    "return an sh:inversePath that is a IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:inversePath ex:state ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
+      val ShPathConstraint(path, _) = shapes.head.constraints.head
+      assert(ShInversePath(exState) == path)
+    }
+    "return violation if sh:inversePath is not an IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path [ sh:inversePath (ex:Red ex:Green) ] ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), _, _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.inversePath == path)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shInversePathMustBeIRI == msg)
+    }
+  }
+
+  "extractShPath" should {
+    "return violation if sh:path is rdf:nil or empty" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path () ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.path == path)
+      assert(RDF.nil == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shPathMustNotBeRDFnil == msg)
     }
     "return an sh:path constraint that is an IRI" in {
       val shape: Model = {
@@ -717,9 +1219,9 @@ class ShapeParserTest extends WordSpec {
       }
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val ShPathConstraint(path, _) = shapes.head.constraints.head
-      assert(ShPredicatePath == path)
+      assert(ShPredicatePath(exState) == path)
     }
-    "return violation if a node has more than 1 sh:path" in {
+    "return violation if node has more than 1 sh:path" in {
       val shape: Model = {
         val snippet: String =
           """
@@ -739,13 +1241,12 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, _, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.path) == path)
+      val Invalid(ShValidationResult(_, Some(path), _, _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.path == path)
       assert(ShMaxCountConstraintComponent(1) == conCom)
-      assert(Some(moreThanOneShpath) == msg)
-      assert(ShViolation == severity)
+      assert(moreThanOneShPath == msg)
     }
-    "return violation if sh:path is a Literal" in {
+    "return violation if sh:path is not an IRI or blank node" in { // bbb
       val shape: Model = {
         val snippet: String =
           """
@@ -764,14 +1265,13 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, value, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.path) == path)
-      assert(Some(createLiteral("42", XSD.integer)) == value)
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.path == path)
+      assert(literal42 == value)
       assert(ShNodeKindConstraintComponent(ShBlankNodeOrIRI) == conCom)
-      assert(Some(shpathMustBeIRIOrBlankNode) == msg)
-      assert(ShViolation == severity)
+      assert(shPathMustBeIRIOrBlankNode == msg)
     }
-    "return violation if sh:property has zero component" in {
+    "return violation if sh:property has no component" in {
       val shape: Model = {
         val snippet: String =
           """
@@ -787,14 +1287,88 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, _, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.property) == path)
+      val Invalid(ShValidationResult(_, Some(path), _, _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.property == path)
       assert(ShHasValueConstraintComponent(oneOrMoreTriples) == conCom)
-      assert(Some(emptyShproperty) == msg)
-      assert(ShViolation == severity)
+      assert(emptyShProperty == msg)
+    }
+  }
+
+  "extractShPredicate" should {
+    "return violation if sh:predicate is rdf:nil or empty" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:predicate ()
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.predicate == path)
+      assert(RDF.nil == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shPredicateMustNotBeRDFnil == msg)
+    }
+    "return an sh:predicate that is an IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:predicate ex:state ;
+              sh:nodeKind sh:IRI ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
+      val ShPathConstraint(path, _) = shapes.head.constraints.head
+      assert(ShPredicatePath(exState) == path)
+    }
+    "return violation if node has more than 1 sh:predicate" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:predicate ex:status ;
+              sh:predicate ex:state ;
+              sh:nodeKind sh:IRI ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), _, _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.predicate == path)
+      assert(ShMaxCountConstraintComponent(1) == conCom)
+      assert(moreThanOneShPredicate == msg)
     }
     "return violation if sh:predicate is not an IRI" in {
-     val shape: Model = {
+      val shape: Model = {
         val snippet: String =
           """
           @prefix sh: <http://www.w3.org/ns/shacl#> .
@@ -812,13 +1386,15 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, _, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.predicate) == path)
+      val Invalid(ShValidationResult(_, Some(path), _, _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.predicate == path)
       assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
-      assert(Some(shpredicateMustBeIRI) == msg)
-      assert(ShViolation == severity)
+      assert(shPredicateMustBeIRI == msg)
     }
-    "return violation if sh:property is a Literal" in {
+  }
+
+  "extractShPathConstraint" should {
+    "return violation if sh:property is not a blank node" in {
       val shape: Model = {
         val snippet: String =
           """
@@ -826,7 +1402,7 @@ class ShapeParserTest extends WordSpec {
           @prefix ex: <http://www.example.org/ex#> .
           ex:Shape
             a sh:Shape ;
-            sh:property 42 ;
+            sh:property ex:Green ;
           .
           """
         val reader = new StringReader(snippet)
@@ -834,23 +1410,18 @@ class ShapeParserTest extends WordSpec {
         if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
         shape
       }
-      val Invalid(ShValidationResult(_, path, _, _, conCom, _, msg, severity)) = Validator.getShSchema(shape)
-      assert(Some(SH.property) == path)
-      assert(ShNodeKindConstraintComponent(ShBlankNodeOrIRI) == conCom)
-      assert(Some(shpropertyMustBeIRIOrBlankNode) == msg)
-      assert(ShViolation == severity)
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.property == path)
+      assert(exGreen == value)
+      assert(ShNodeKindConstraintComponent(ShBlankNode) == conCom)
+      assert(shPropertyMustBeBlankNode == msg)
     }
   }
 
-
-  /*** extractSetShNodeConstraint ***/
-  // TODO when figure out which constraint is a node constraint
+  // TODO when figure out which constraint is node constraint
   "extractSetShNodeConstraint" should {
 
   }
-
-
-  /*** extractSetShPathConstraint ***/
 
   "extractSetShPathConstraint" should {
     "return a set of path constraints" in {
@@ -863,15 +1434,12 @@ class ShapeParserTest extends WordSpec {
             a sh:Shape ;
             sh:property [
               sh:predicate ex:state ;
-              sh:nodeKind sh:IRI ;
             ] ;
             sh:property [
               sh:path ex:status ;
-              sh:nodeKind sh:IRI ;
             ] ;
             sh:property [
               sh:predicate ex:stat ;
-              sh:nodeKind sh:IRI ;
             ]
           .
           """
@@ -882,75 +1450,97 @@ class ShapeParserTest extends WordSpec {
       }
       val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
       val setShPathConstraints = shapes.head.constraints
-//      assert(Set(ShPathConstraint(ShPredicatePath, Set(_))) == setShPathConstraints)
-// Bamboo TODO
+      assert(
+        Set(
+          ShPathConstraint(ShPredicatePath(exState), Set.empty),
+          ShPathConstraint(ShPredicatePath(exStatus), Set.empty),
+          ShPathConstraint(ShPredicatePath(exStat), Set.empty)
+        ) == setShPathConstraints)
     }
     "return violation if there is 1 violation" in {
-
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path () ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, _, _, _, _, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(shPathMustNotBeRDFnil == msg)
     }
     "return accumulated violations if there are more than 1 violation" in {
-
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path () ;
+            ] ;
+            sh:property [
+              sh:predicate () ;
+            ] ;
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResults(Vector(
+        ShValidationResult(_, _, _, _, _, _, Some(msg1), _),
+        ShValidationResult(_, _, _, _, _, _, Some(msg2), _)
+      ))) = Validator.getShSchema(shape)
+      assert(shPathMustNotBeRDFnil == msg1)
+      assert(shPredicateMustNotBeRDFnil == msg2)
     }
   }
 
-
-  /*** extractSetShConstraint ***/
   // TODO after completing extractSetShNodeConstraint
   "extractSetShConstraint" should {
 
   }
 
-
-  /*** extractSetShAlgebraic ***/
   // TODO
   "extractSetShAlgebraic" should {
 
   }
 
-
-  /***  ***/
-
   "extractShShapeLabel" should {
 
   }
-
-
-  /***  ***/
 
   "extractSetShTarget" should {
 
   }
 
-
-  /***  ***/
-
   "extractSetShFilterShape" should {
 
   }
-
-
-  /***  ***/
 
   "extractSetShTest" should {
 
   }
 
-
-  /***  ***/
-
   "extractShShape" should {
 
   }
 
-
-  /***  ***/
-
   "extractSetShShape" should {
 
   }
-
-
-  /***  ***/
 
   "extractShSchema" should {
 

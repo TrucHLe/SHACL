@@ -3,85 +3,78 @@ package messages
 
 import vocabulary.RDF
 
-
 object ShapeParserMessages {
-  val invalidShtargetNode: String =
+  val invalidShTargetNode: String =
     "Invalid `sh:targetNode`."
 
-  val invalidShtargetClass: String =
+  val invalidShTargetClass: String =
     "Invalid `sh:targetClass`."
 
-  val invalidShtargetSubjectsOf: String =
+  val invalidShTargetSubjectsOf: String =
     "Invalid `sh:targetSubjectsOf`."
 
-  val invalidShtargetObjectsOf: String =
+  val invalidShTargetObjectsOf: String =
     "Invalid `sh:targetObjectsOf`."
 
-  def invalidShConstraint(constraint: String): String =
-    s"Invalid `sh:Constraint $constraint`."
-
-  val shpredicateMustBeIRI: String =
+  val shPredicateMustBeIRI: String =
     s"`sh:predicate` must be an IRI."
 
-  val shpathMustBeIRIOrBlankNode: String =
+  val shPathMustBeIRIOrBlankNode: String =
     s"`sh:path` must be an IRI or blank node."
 
-  val shpredicateMustHaveValue: String =
-    "`sh:predicate` must have a value."
+  val shPredicateMustNotBeRDFnil: String =
+    s"`sh:predicate` must not be ${RDF.nil}."
 
-  val shpathMustHaveValue: String =
-    "`sh:path` must have a value."
+  val shPathMustNotBeRDFnil: String =
+    s"`sh:path` must not be ${RDF.nil}."
 
-  val moreThanOneShpredicate: String =
+  val moreThanOneShPredicate: String =
     s"Found more than one `sh:predicate`."
 
-  val moreThanOneShpath: String =
+  val moreThanOneShPath: String =
     s"Found more than one `sh:path`."
 
-  val moreThanOneShinversePath: String =
+  val moreThanOneShInversePath: String =
     s"Found more than one `sh:inversePath`."
 
-  val emptyShproperty: String =
+  val emptyShProperty: String =
     s"Empty `sh:property`."
 
-  val shpropertyMustHaveValue: String =
-    "`sh:property` must have a value."
-
-  val shpropertyMustBeIRIOrBlankNode: String =
-    "`sh:property` must be an IRI or blank node."
+  val shPropertyMustBeBlankNode: String =
+    "`sh:property` must be a blank node."
 
   val oneOrMoreTriples: String =
     "One or more triples."
 
-  val shnodeKindMustBeShBlankNodeOrShIRIOrShLiteral: String =
+  val shNodeKindMustBeShBlankNodeOrShIRIOrShLiteral: String =
     "`sh:nodeKind` must be `sh:BlankNode`, `sh:IRI`, or `sh:Literal`."
 
-  val shinMustHaveOneOrMoreValues: String =
+  val shInMustHaveOneOrMoreValues: String =
     "`sh:in` must have one or more values."
 
-  val shclassMustBeIRI: String =
+  val shClassMustBeIRI: String =
     "`sh:class` must be an IRI."
 
-  val shclassMustHaveValue: String =
-    "`sh:class` must have a value."
+  val shClassMustNotBeRDFnil: String =
+    s"`sh:class` must not be ${RDF.nil}."
 
-  val shdatatypeMustBeIRI: String =
+  val shDatatypeMustBeIRI: String =
     "`sh:datatype` must be an IRI."
 
-  val shdatatypeMustHaveValue: String =
-    "`sh:datatype` must have a value."
+  val shDatatypeMustNotBeRDFnil: String =
+    s"`sh:datatype` must not be ${RDF.nil}."
 
-  val shminLengthMustBeNumber: String =
+  val shMinLengthMustBeNumber: String =
     "`sh:minLength` must be a number."
 
-  val shmaxLengthMustBeNumber: String =
+  val shMaxLengthMustBeNumber: String =
     "`sh:maxLength` must be a number."
 
   val rdfFirstMustBeIRI: String =
     "`rdf:first` must be an IRI."
 
-  val rdfLastMustBeIRI: String =
-    "`rdf:last` must be an IRI."
+  val rdfRestMustBeIRI: String =
+    "`rdf:rest` must be an IRI."
 
   val expectingTwoIRIsFoundOne: String =
     "Expecting two IRIs but found only one IRI."
@@ -89,18 +82,30 @@ object ShapeParserMessages {
   val expectingTwoIRIsFoundMoreThanTwo: String =
     "Expecting only two IRIs but found more than two IRIs."
 
-  val shpathMustNotBeRDFnil: String =
-    s"`sh:path` must not be ${RDF.nil}."
+  val shInversePathMustNotBeRDFnil: String =
+    s"`sh:inversePath` must not be ${RDF.nil}."
 
+  val shInversePathMustBeIRI: String =
+    "`sh:inversePath` must be an IRI."
 
+  val shAlternativePathMustBeBNode: String =
+    "`sh:alternativePath` must be a BNode."
 
+  val expectingPathNameFoundNone: String =
+    "Expecting a path name but found none."
 
-  def emptyShPredicatePathConstraint(pred: String): String =
-    s"Found no constraint of `sh:predicate $pred`."
+  val shZeroOrMorePathMustNotBeRDFnil: String =
+    s"`sh:zeroOrMorePath` must not be ${RDF.nil}."
 
-  def emptyShNodeConstraint(pred: String): String =
-    s"Found no constraint of `sh:predicate $pred`."
+  val shZeroOrMorePathMustBeIRI: String =
+    "`sh:zeroOrMorePath` must be an IRI."
 
-  def invalidShParameter(parm: String): String =
-    s"Invalid `Sh:Parameter $parm`."
+  val shOneOrMorePathMustNotBeRDFnil: String =
+    s"`sh:oneOrMorePath` must not be ${RDF.nil}."
+
+  val shOneOrMorePathMustBeIRI: String =
+    "`sh:oneOrMorePath` must be an IRI."
+
+  val invalidSPARQLpath: String =
+    "Invalid SPARQL path."
 }

@@ -26,79 +26,83 @@ final case class ShapeParser(shape: Model) {
     shape.filter(bnode, RDF.first, null).asScala.toList match {
       case Rdf4j.Statement(_, _, iriOrLiteral) :: Nil =>
         shape.filter(bnode, RDF.rest, null).asScala.toList match {
-          case Rdf4j.Statement(_, _, Rdf4j.IRI(RDF.nil)) :: Nil => Set(iriOrLiteral)
+          case Rdf4j.Statement(_, _, RDF.nil) :: Nil => Set(iriOrLiteral)
           case Rdf4j.Statement(_, _, Rdf4j.BNode(bn)) :: Nil => extractValueList(bn) + iriOrLiteral
         }
     }
   }
 
-  def extractIRIPathPair(sourceShape: Resource, focusNode: Resource, bnode1: BNode): Check[(IRI, IRI)] = {
-    shape.filter(bnode1, RDF.first, null).asScala.toList match {
-      case Rdf4j.Statement(_, _, Rdf4j.IRI(RDF.nil)) :: Nil =>
-        violation(
-          focusNode,
-          Some(RDF.first),
-          Some(RDF.nil),
-          Some(sourceShape),
-          new ShNodeKindConstraintComponent(ShIRI),
-          None,
-          Some(shpathMustNotBeRDFnil))
-      case Rdf4j.Statement(_, _, Rdf4j.IRI(iri1)) :: Nil =>
-        shape.filter(bnode1, RDF.rest, null).asScala.toList match {
-          case Rdf4j.Statement(_, _, Rdf4j.IRI(RDF.nil)) :: Nil =>
-            violation(
-              focusNode,
-              Some(RDF.rest),
-              Some(RDF.nil),
-              Some(sourceShape),
-              new ShMinCountConstraintComponent(1),
-              None,
-              Some(expectingTwoIRIsFoundOne))
-          case Rdf4j.Statement(_, _, Rdf4j.BNode(bnode2)) :: Nil =>
-            shape.filter(bnode2, RDF.first, null).asScala.toList match {
-              case Rdf4j.Statement(_, _, Rdf4j.IRI(RDF.nil)) :: Nil =>
-                violation(
-                  focusNode,
-                  Some(RDF.first),
-                  Some(RDF.nil),
-                  Some(sourceShape),
-                  new ShNodeKindConstraintComponent(ShIRI),
-                  None,
-                  Some(shpathMustNotBeRDFnil))
-              case Rdf4j.Statement(_, _, Rdf4j.IRI(iri2)) :: Nil =>
-                shape.filter(bnode2, RDF.rest, null).asScala.toList match {
-                  case Rdf4j.Statement(_, _, RDF.nil) :: Nil => checked(iri1, iri2)
-                  case Rdf4j.Statement(_, _, v3) :: _ =>
-                    violation(
-                      focusNode,
-                      Some(RDF.rest),
-                      Some(v3),
-                      Some(sourceShape),
-                      new ShMaxCountConstraintComponent(2),
-                      None,
-                      Some(expectingTwoIRIsFoundMoreThanTwo))
-                }
-              case Rdf4j.Statement(_, _, v2) :: _ =>
-                violation(
-                  focusNode,
-                  Some(RDF.first),
-                  Some(v2),
-                  Some(sourceShape),
-                  new ShNodeKindConstraintComponent(ShIRI),
-                  None,
-                  Some(rdfFirstMustBeIRI))
-            }
-        }
-      case Rdf4j.Statement(_, _, v1) :: _ =>
-        violation(
-          focusNode,
-          Some(RDF.first),
-          Some(v1),
-          Some(sourceShape),
-          new ShNodeKindConstraintComponent(ShIRI),
-          None,
-          Some(rdfFirstMustBeIRI))
-    }
+  def extractIRIPair(sourceShape: Resource, focusNode: Resource, bnode1: BNode): Check[(IRI, IRI)] = {
+    def extractSecondIRI(bnode2: BNode, iri1: IRI): Check[(IRI, IRI)] =
+      shape.filter(bnode2, RDF.first, null).asScala.toList match {
+        case Rdf4j.Statement(_, _, RDF.nil) :: Nil =>
+          violation(
+            focusNode,
+            Some(RDF.first),
+            Some(RDF.nil),
+            Some(sourceShape),
+            new ShNodeKindConstraintComponent(ShIRI),
+            None,
+            Some(shPathMustNotBeRDFnil))
+        case Rdf4j.Statement(_, _, Rdf4j.IRI(iri2)) :: Nil =>
+          shape.filter(bnode2, RDF.rest, null).asScala.toList match {
+            case Rdf4j.Statement(_, _, RDF.nil) :: Nil => checked((iri1, iri2))
+            case Rdf4j.Statement(_, _, _) :: _ =>
+              violation(
+                focusNode,
+                Some(RDF.rest),
+                None,
+                Some(sourceShape),
+                new ShMaxCountConstraintComponent(2),
+                None,
+                Some(expectingTwoIRIsFoundMoreThanTwo))
+          }
+        case Rdf4j.Statement(_, _, v2) :: _ =>
+          violation(
+            focusNode,
+            Some(RDF.first),
+            Some(v2),
+            Some(sourceShape),
+            new ShNodeKindConstraintComponent(ShIRI),
+            None,
+            Some(rdfFirstMustBeIRI))
+      }
+    def extractFirstIRI: Check[(IRI, IRI)] =
+      shape.filter(bnode1, RDF.first, null).asScala.toList match {
+        case Rdf4j.Statement(_, _, RDF.nil) :: Nil =>
+          violation(
+            focusNode,
+            Some(RDF.first),
+            Some(RDF.nil),
+            Some(sourceShape),
+            new ShNodeKindConstraintComponent(ShIRI),
+            None,
+            Some(shPathMustNotBeRDFnil))
+        case Rdf4j.Statement(_, _, Rdf4j.IRI(iri1)) :: Nil =>
+          shape.filter(bnode1, RDF.rest, null).asScala.toList match {
+            case Rdf4j.Statement(_, _, Rdf4j.BNode(bnode2)) :: Nil =>
+              extractSecondIRI(bnode2, iri1)
+            case Rdf4j.Statement(_, _, RDF.nil) :: Nil =>
+              violation(
+                focusNode,
+                Some(RDF.rest),
+                Some(RDF.nil),
+                Some(sourceShape),
+                new ShNodeKindConstraintComponent(ShIRI),
+                None,
+                Some(expectingTwoIRIsFoundOne))
+          }
+        case Rdf4j.Statement(_, _, v1) :: _ =>
+          violation(
+            focusNode,
+            Some(RDF.first),
+            Some(v1),
+            Some(sourceShape),
+            new ShNodeKindConstraintComponent(ShIRI),
+            None,
+            Some(rdfFirstMustBeIRI))
+      }
+    extractFirstIRI
   }
 
   // TODO ---------------------------------------------------------
@@ -121,20 +125,20 @@ final case class ShapeParser(shape: Model) {
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShIRI),
           None,
-          Some(shnodeKindMustBeShBlankNodeOrShIRIOrShLiteral))
+          Some(shNodeKindMustBeShBlankNodeOrShIRIOrShLiteral))
     }
 
   def extractShPIn(sourceShape: Resource, focusNode: Resource, value: Value): Check[ShPIn] =
     value match {
-      case Rdf4j.IRI(RDF.nil) =>
+      case RDF.nil =>
         violation(
           focusNode,
           Some(SH.in),
           Some(RDF.nil),
           Some(sourceShape),
-          new ShMinCountConstraintComponent(1),
+          new ShNodeKindConstraintComponent(ShIRI),          
           None,
-          Some(shinMustHaveOneOrMoreValues))
+          Some(shInMustHaveOneOrMoreValues))
       case iri: IRI => checked(new ShPIn(Set(iri)))
       case simpleLiteral: SimpleLiteral => checked(new ShPIn(Set(simpleLiteral)))
       case Rdf4j.BNode(bnode) => checked(new ShPIn(extractValueList(bnode)))
@@ -142,15 +146,15 @@ final case class ShapeParser(shape: Model) {
 
   def extractShPClass(sourceShape: Resource, focusNode: Resource, value: Value): Check[ShPClass] =
     value match {
-      case Rdf4j.IRI(RDF.nil) =>
+      case RDF.nil =>
         violation(
           focusNode,
           Some(SH.clss),
           Some(RDF.nil),
           Some(sourceShape),
-          new ShMinCountConstraintComponent(1),
+          new ShNodeKindConstraintComponent(ShIRI),          
           None,
-          Some(shclassMustHaveValue))
+          Some(shClassMustNotBeRDFnil))
       case iri: IRI => checked(new ShPClass(iri))
       case v =>
         violation(
@@ -160,21 +164,21 @@ final case class ShapeParser(shape: Model) {
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShIRI),
           None,
-          Some(shclassMustBeIRI)
+          Some(shClassMustBeIRI)
         )
     }
 
   def extractShPDatatype(sourceShape: Resource, focusNode: Resource, value: Value): Check[ShPDatatype] =
     value match {
-      case Rdf4j.IRI(RDF.nil) =>
+      case RDF.nil =>
         violation(
           focusNode,
           Some(SH.datatype),
           Some(RDF.nil),
           Some(sourceShape),
-          new ShMinCountConstraintComponent(1),
+          new ShNodeKindConstraintComponent(ShIRI),          
           None,
-          Some(shdatatypeMustHaveValue))
+          Some(shDatatypeMustNotBeRDFnil))
       case iri: IRI => checked(new ShPDatatype(iri))
       case v =>
         violation(
@@ -184,7 +188,7 @@ final case class ShapeParser(shape: Model) {
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShIRI),
           None,
-          Some(shdatatypeMustBeIRI)
+          Some(shDatatypeMustBeIRI)
         )
     }
 
@@ -199,7 +203,7 @@ final case class ShapeParser(shape: Model) {
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShLiteral),
           None,
-          Some(shminLengthMustBeNumber)
+          Some(shMinLengthMustBeNumber)
         )
     }
 
@@ -214,7 +218,7 @@ final case class ShapeParser(shape: Model) {
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShLiteral),
           None,
-          Some(shmaxLengthMustBeNumber)
+          Some(shMaxLengthMustBeNumber)
         )
     }
 
@@ -271,138 +275,242 @@ final case class ShapeParser(shape: Model) {
       extractSetShNaryParameter(sourceShape, focusNode)
     )((s1, s2) => s1 ++ s2)
 
-  def extractShPathConstraint(sourceShape: Resource, statement: Statement): Check[ShPathConstraint] =
-    statement match {
-      case Rdf4j.Statement(_, _, Rdf4j.IRI(RDF.nil)) =>
-        violation(
-          sourceShape,
-          Some(SH.property),
-          Some(RDF.nil),
-          Some(sourceShape),
-          new ShMinCountConstraintComponent(1),
-          None,
-          Some(shpropertyMustHaveValue))
-      case Rdf4j.Statement(_, _, Rdf4j.Resource(focusNode)) =>
-        shape.filter(focusNode, SH.predicate, null).asScala.toList match {
-          case Rdf4j.Statement(_, _, Rdf4j.IRI(RDF.nil)) =>
-            violation(
-              focusNode,
-              Some(SH.predicate),
-              Some(RDF.nil),
-              Some(sourceShape),
-              new ShMinCountConstraintComponent(1),
-              None,
-              Some(shpredicateMustHaveValue))
-          case Rdf4j.Statement(_, _, Rdf4j.IRI(pred)) :: Nil =>
-            Apply[Check].map(
-              extractSetShParameter(sourceShape, focusNode)
-            )(s => new ShPathConstraint(new ShPredicatePath(pred), s))
-          case Rdf4j.Statement(_, _, Rdf4j.IRI(_)) :: _ =>
-            violation(
-              focusNode,
-              Some(SH.predicate),
-              None,
-              Some(sourceShape),
-              new ShMaxCountConstraintComponent(1),
-              None,
-              Some(moreThanOneShpredicate))
-          case Nil =>
-            shape.filter(focusNode, SH.path, null).asScala.toList match {
-              case Rdf4j.Statement(_, _, Rdf4j.IRI(RDF.nil)) =>
-                violation(
-                  focusNode,
-                  Some(SH.path),
-                  Some(RDF.nil),
-                  Some(sourceShape),
-                  new ShMinCountConstraintComponent(1),
-                  None,
-                  Some(shpathMustHaveValue))
-              case Rdf4j.Statement(_, _, Rdf4j.IRI(path)) :: Nil =>
-                Apply[Check].map(
-                  extractSetShParameter(sourceShape, focusNode)
-                )(s => new ShPathConstraint(new ShPredicatePath(path), s))
-              case Rdf4j.Statement(_, _, Rdf4j.IRI(_)) :: _ =>
-                violation(
-                  focusNode,
-                  Some(SH.path),
-                  None,
-                  Some(sourceShape),
-                  new ShMaxCountConstraintComponent(1),
-                  None,
-                  Some(moreThanOneShpath))
+  def extractSequencePath(sourceShape: Resource, focusNode: Resource, headBNode: BNode): Check[ShPathConstraint] =
+    Apply[Check].map2(
+      extractIRIPair(sourceShape, focusNode, headBNode),
+      extractSetShParameter(sourceShape, focusNode)
+    )((t, s) => new ShPathConstraint(new ShSequencePath(t._1, t._2), s))
 
-
-
-              case Rdf4j.Statement(_, _, Rdf4j.BNode(bnode)) :: Nil =>
-                shape.filter(bnode, SH.inversePath, null).asScala.toList match {
-                  case Rdf4j.Statement(_, _, Rdf4j.IRI(inversePath)) :: Nil =>
-                    Apply[Check].map(
-                      extractSetShParameter(sourceShape, focusNode)
-                    )(s => new ShPathConstraint(new ShInversePath(inversePath), s))
-                  case Rdf4j.Statement(_, _, Rdf4j.IRI(inversePath)) :: _ =>
+  def extractZeroOneOrMorePath(sourceShape: Resource, focusNode: Resource, headBNode: BNode): Check[ShPathConstraint] =
+    shape.filter(headBNode, RDF.first, RDF.ty).asScala.toList match {
+      case Rdf4j.Statement(_, _, _) :: Nil =>
+        shape.filter(headBNode, RDF.rest, null).asScala.toList match {
+          case Rdf4j.Statement(_, _, Rdf4j.BNode(bnode1)) :: Nil =>
+            shape.filter(bnode1, RDF.first, null).asScala.toList match {
+              // Only BNode is possible here because of how TurtleParser works
+              case Rdf4j.Statement(_, _, Rdf4j.BNode(bnode2)) :: Nil =>
+                shape.filter(bnode2, null, null).asScala.toList match {
+                  case Rdf4j.Statement(_, SH.zeroOrMorePath, RDF.nil) :: Nil =>
                     violation(
                       focusNode,
-                      Some(SH.inversePath),
+                      Some(SH.zeroOrMorePath),
+                      Some(RDF.nil),
+                      Some(sourceShape),
+                      new ShNodeKindConstraintComponent(ShIRI),
+                      None,
+                      Some(shZeroOrMorePathMustNotBeRDFnil))
+                  case Rdf4j.Statement(_, SH.zeroOrMorePath, Rdf4j.IRI(iri)) :: Nil =>
+                    Apply[Check].map(
+                      extractSetShParameter(sourceShape, focusNode)
+                    )(s => new ShPathConstraint(new ShZeroOrMorePath(iri), s))
+                  case Rdf4j.Statement(_, SH.zeroOrMorePath, v) :: Nil =>
+                    violation(
+                      focusNode,
+                      Some(SH.zeroOrMorePath),
+                      Some(v),
+                      Some(sourceShape),
+                      new ShNodeKindConstraintComponent(ShIRI),
+                      None,
+                      Some(shZeroOrMorePathMustBeIRI))
+                  case Rdf4j.Statement(_, SH.oneOrMorePath, RDF.nil) :: Nil =>
+                    violation(
+                      focusNode,
+                      Some(SH.oneOrMorePath),
+                      Some(RDF.nil),
+                      Some(sourceShape),
+                      new ShNodeKindConstraintComponent(ShIRI),
+                      None,
+                      Some(shOneOrMorePathMustNotBeRDFnil))
+                  case Rdf4j.Statement(_, SH.oneOrMorePath, Rdf4j.IRI(iri)) :: Nil =>
+                    Apply[Check].map(
+                      extractSetShParameter(sourceShape, focusNode)
+                    )(s => new ShPathConstraint(new ShOneOrMorePath(iri), s))
+                  case Rdf4j.Statement(_, SH.oneOrMorePath, v) :: Nil =>
+                    violation(
+                      focusNode,
+                      Some(SH.oneOrMorePath),
+                      Some(v),
+                      Some(sourceShape),
+                      new ShNodeKindConstraintComponent(ShIRI),
+                      None,
+                      Some(shOneOrMorePathMustBeIRI))
+                  case Rdf4j.Statement(_, Rdf4j.IRI(i), _) :: Nil =>
+                    violation(
+                      focusNode,
+                      Some(RDF.ty),
+                      Some(i),
+                      Some(sourceShape),
+                      new ShNodeKindConstraintComponent(ShIRI),
+                      None,
+                      Some(invalidSPARQLpath))
+                  case Nil => 
+                    violation(
+                      focusNode,
+                      Some(RDF.ty),
                       None,
                       Some(sourceShape),
-                      new ShMaxCountConstraintComponent(1),
+                      new ShNodeKindConstraintComponent(ShIRI),
                       None,
-                      Some(moreThanOneShinversePath))
-                  case _ =>
-                    checked(new ShPathConstraint(new ShPredicatePath(SH.path), Set.empty))
+                      Some(expectingPathNameFoundNone))
                 }
-
-
-
-              case Rdf4j.Statement(_, _, Rdf4j.BNode(_)) :: _ =>
-                violation(
-                  focusNode,
-                  Some(SH.path),
-                  None,
-                  Some(sourceShape),
-                  new ShMaxCountConstraintComponent(1),
-                  None,
-                  Some(moreThanOneShpath))
-              case Rdf4j.Statement(_, _, Rdf4j.Value(value)) :: _ =>
-                violation(
-                  focusNode,
-                  Some(SH.path),
-                  Some(value),
-                  Some(sourceShape),
-                  new ShNodeKindConstraintComponent(ShBlankNodeOrIRI),
-                  None,
-                  Some(shpathMustBeIRIOrBlankNode))
-              case _ =>
-                violation(
-                  focusNode,
-                  Some(SH.property),
-                  None,
-                  Some(sourceShape),
-                  new ShHasValueConstraintComponent(oneOrMoreTriples),
-                  None,
-                  Some(emptyShproperty))
             }
-          case Rdf4j.Statement(_, _, Rdf4j.Value(value)) :: _ =>
-            violation(
-              focusNode,
-              Some(SH.predicate),
-              Some(value),
-              Some(sourceShape),
-              new ShNodeKindConstraintComponent(ShIRI),
-              None,
-              Some(shpredicateMustBeIRI))
         }
-      case Rdf4j.Statement(_, _, literal) =>
+      case Nil => extractSequencePath(sourceShape, focusNode, headBNode)
+    }
+
+  def extractAlternativePath(sourceShape: Resource, focusNode: Resource, headBNode: BNode): Check[ShPathConstraint] =
+    shape.filter(headBNode, SH.alternativePath, null).asScala.toList match {
+      case Rdf4j.Statement(_, _, Rdf4j.BNode(bnode)) :: Nil =>
+        Apply[Check].map2(
+          extractIRIPair(sourceShape, focusNode, bnode),
+          extractSetShParameter(sourceShape, focusNode)
+        )((t, s) => new ShPathConstraint(new ShAlternativePath(t._1, t._2), s))
+      case Rdf4j.Statement(_, _, v) :: _ =>
         violation(
-          sourceShape,
-          Some(SH.property),
-          Some(literal),
+          focusNode,
+          Some(SH.alternativePath),
+          Some(v),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShBlankNode),
+          None,
+          Some(shAlternativePathMustBeBNode))
+      case Nil => extractZeroOneOrMorePath(sourceShape, focusNode, headBNode)
+    }
+
+  def extractInversePath(sourceShape: Resource, focusNode: Resource, headBNode: BNode): Check[ShPathConstraint] =
+    shape.filter(headBNode, SH.inversePath, null).asScala.toList match {
+      case Rdf4j.Statement(_, _, RDF.nil) :: Nil =>
+        violation(
+          focusNode,
+          Some(SH.inversePath),
+          Some(RDF.nil),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShIRI),
+          None,
+          Some(shInversePathMustNotBeRDFnil))
+      case Rdf4j.Statement(_, _, Rdf4j.IRI(inversePath)) :: Nil =>
+        Apply[Check].map(
+          extractSetShParameter(sourceShape, focusNode)
+        )(s => new ShPathConstraint(new ShInversePath(inversePath), s))
+      case Rdf4j.Statement(_, _, v) :: _ =>
+        violation(
+          focusNode,
+          Some(SH.inversePath),
+          Some(v),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShIRI),
+          None,
+          Some(shInversePathMustBeIRI))
+      case Nil => extractAlternativePath(sourceShape, focusNode, headBNode)
+    }
+
+  def extractShPath(sourceShape: Resource, focusNode: BNode): Check[ShPathConstraint] =
+    shape.filter(focusNode, SH.path, null).asScala.toList match {
+      case Rdf4j.Statement(_, _, RDF.nil) :: _ =>
+        violation(
+          focusNode,
+          Some(SH.path),
+          Some(RDF.nil),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShIRI),
+          None,
+          Some(shPathMustNotBeRDFnil))
+      case Rdf4j.Statement(_, _, Rdf4j.IRI(path)) :: Nil =>
+        Apply[Check].map(
+          extractSetShParameter(sourceShape, focusNode)
+        )(s => new ShPathConstraint(new ShPredicatePath(path), s))
+      case Rdf4j.Statement(_, _, Rdf4j.IRI(_)) :: _ =>
+        violation(
+          focusNode,
+          Some(SH.path),
+          None,
+          Some(sourceShape),
+          new ShMaxCountConstraintComponent(1),
+          None,
+          Some(moreThanOneShPath))
+      case Rdf4j.Statement(_, _, Rdf4j.BNode(bnode)) :: Nil =>
+        extractInversePath(sourceShape, focusNode, bnode)
+      case Rdf4j.Statement(_, _, Rdf4j.BNode(_)) :: _ =>
+        violation(
+          focusNode,
+          Some(SH.path),
+          None,
+          Some(sourceShape),
+          new ShMaxCountConstraintComponent(1),
+          None,
+          Some(moreThanOneShPath))
+      case Rdf4j.Statement(_, _, v) :: _ =>
+        violation(
+          focusNode,
+          Some(SH.path),
+          Some(v),
           Some(sourceShape),
           new ShNodeKindConstraintComponent(ShBlankNodeOrIRI),
           None,
-          Some(shpropertyMustBeIRIOrBlankNode))
+          Some(shPathMustBeIRIOrBlankNode))
+      case Nil =>
+        violation(
+          focusNode,
+          Some(SH.property),
+          None,
+          Some(sourceShape),
+          new ShHasValueConstraintComponent(oneOrMoreTriples),
+          None,
+          Some(emptyShProperty))
     }
 
+  def extractShPredicate(sourceShape: Resource, focusNode: BNode): Check[ShPathConstraint] = {
+    shape.filter(focusNode, SH.predicate, null).asScala.toList match {
+      case Rdf4j.Statement(_, _, RDF.nil) :: Nil =>
+        violation(
+          focusNode,
+          Some(SH.predicate),
+          Some(RDF.nil),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShIRI),
+          None,
+          Some(shPredicateMustNotBeRDFnil))
+      case Rdf4j.Statement(_, _, Rdf4j.IRI(pred)) :: Nil =>
+        Apply[Check].map(
+          extractSetShParameter(sourceShape, focusNode)
+        )(s => new ShPathConstraint(new ShPredicatePath(pred), s))
+      case Rdf4j.Statement(_, _, Rdf4j.IRI(_)) :: _ =>
+        violation(
+          focusNode,
+          Some(SH.predicate),
+          None,
+          Some(sourceShape),
+          new ShMaxCountConstraintComponent(1),
+          None,
+          Some(moreThanOneShPredicate))
+      case Nil =>
+        extractShPath(sourceShape, focusNode)
+      case Rdf4j.Statement(_, _, v) :: _ =>
+        violation(
+          focusNode,
+          Some(SH.predicate),
+          Some(v),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShIRI),
+          None,
+          Some(shPredicateMustBeIRI))
+    }
+  }
+
+  def extractShPathConstraint(sourceShape: Resource, statement: Statement): Check[ShPathConstraint] =
+    statement match {
+      case Rdf4j.Statement(_, _, Rdf4j.BNode(focusNode)) =>
+        extractShPredicate(sourceShape, focusNode)
+      case Rdf4j.Statement(_, _, v) =>
+        violation(
+          sourceShape,
+          Some(SH.property),
+          Some(v),
+          Some(sourceShape),
+          new ShNodeKindConstraintComponent(ShBlankNode),
+          None,
+          Some(shPropertyMustBeBlankNode))
+    }
 
   // TODO: SHACL documentation doesn't specify which constraint
   // can be NodeConstraint. Check again in the future.
@@ -437,7 +545,7 @@ final case class ShapeParser(shape: Model) {
   def extractShShapeLabel(statement: Statement): Check[Resource] =
     statement match {
       case Rdf4j.Statement(Rdf4j.Resource(r), _, _) => checked(r)
-      case _ => ??? // RDF4J turtle parser already catches shape's label that isn't IRI or BNode
+      // TurtleParser already catches label that isn't IRI or BNode
     }
 
   def extractSetShTarget(subject: Resource): Check[Set[ShTarget]] =
