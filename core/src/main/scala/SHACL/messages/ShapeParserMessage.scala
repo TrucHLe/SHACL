@@ -106,6 +106,12 @@ object ShapeParserMessages {
   val shOneOrMorePathMustBeIRI: String =
     "`sh:oneOrMorePath` must be an IRI."
 
+  val shZeroOrOnePathMustNotBeRDFnil: String =
+    s"`sh:zeroOrOnePath` must not be ${RDF.nil}."
+
+  val shZeroOrOnePathMustBeIRI: String =
+    "`sh:zeroOrOnePath` must be an IRI."
+
   val invalidSPARQLpath: String =
     "Invalid SPARQL path."
 }

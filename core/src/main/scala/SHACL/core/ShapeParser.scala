@@ -281,7 +281,7 @@ final case class ShapeParser(shape: Model) {
       extractSetShParameter(sourceShape, focusNode)
     )((t, s) => new ShPathConstraint(new ShSequencePath(t._1, t._2), s))
 
-  def extractZeroOneOrMorePath(sourceShape: Resource, focusNode: Resource, headBNode: BNode): Check[ShPathConstraint] =
+  def extractZeroOnePath(sourceShape: Resource, focusNode: Resource, headBNode: BNode): Check[ShPathConstraint] =
     shape.filter(headBNode, RDF.first, RDF.ty).asScala.toList match {
       case Rdf4j.Statement(_, _, _) :: Nil =>
         shape.filter(headBNode, RDF.rest, null).asScala.toList match {
@@ -334,6 +334,28 @@ final case class ShapeParser(shape: Model) {
                       new ShNodeKindConstraintComponent(ShIRI),
                       None,
                       Some(shOneOrMorePathMustBeIRI))
+                  case Rdf4j.Statement(_, SH.zeroOrOnePath, RDF.nil) :: Nil =>
+                    violation(
+                      focusNode,
+                      Some(SH.zeroOrOnePath),
+                      Some(RDF.nil),
+                      Some(sourceShape),
+                      new ShNodeKindConstraintComponent(ShIRI),
+                      None,
+                      Some(shZeroOrOnePathMustNotBeRDFnil))
+                  case Rdf4j.Statement(_, SH.zeroOrOnePath, Rdf4j.IRI(iri)) :: Nil =>
+                    Apply[Check].map(
+                      extractSetShParameter(sourceShape, focusNode)
+                    )(s => new ShPathConstraint(new ShZeroOrOnePath(iri), s))
+                  case Rdf4j.Statement(_, SH.zeroOrOnePath, v) :: Nil =>
+                    violation(
+                      focusNode,
+                      Some(SH.zeroOrOnePath),
+                      Some(v),
+                      Some(sourceShape),
+                      new ShNodeKindConstraintComponent(ShIRI),
+                      None,
+                      Some(shZeroOrOnePathMustBeIRI))
                   case Rdf4j.Statement(_, Rdf4j.IRI(i), _) :: Nil =>
                     violation(
                       focusNode,
@@ -374,7 +396,7 @@ final case class ShapeParser(shape: Model) {
           new ShNodeKindConstraintComponent(ShBlankNode),
           None,
           Some(shAlternativePathMustBeBNode))
-      case Nil => extractZeroOneOrMorePath(sourceShape, focusNode, headBNode)
+      case Nil => extractZeroOnePath(sourceShape, focusNode, headBNode)
     }
 
   def extractInversePath(sourceShape: Resource, focusNode: Resource, headBNode: BNode): Check[ShPathConstraint] =

@@ -12,4 +12,5 @@ object ShPropertyPath {
   final case class ShAlternativePath(first: IRI, second: IRI) extends ShPropertyPath
   final case class ShZeroOrMorePath(path: IRI) extends ShPropertyPath
   final case class ShOneOrMorePath(path: IRI) extends ShPropertyPath
+  final case class ShZeroOrOnePath(path: IRI) extends ShPropertyPath
 }

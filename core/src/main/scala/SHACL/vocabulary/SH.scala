@@ -1,6 +1,6 @@
 /*
  * W3C Shapes Constraint Language (SHACL) Vocabulary
- * Draft last edited 2016-09-22
+ * Draft last edited 2016-11-21
  */
 
 package SHACL
@@ -16,15 +16,17 @@ object SH {
 
   val Constraint: IRI = createIRI(sh, "Constraint")
   val Shape: IRI = createIRI(sh, "Shape")
-  val filterShape: IRI = createIRI(sh, "filterShape")
+  val deactivated: IRI = createIRI(sh, "deactivated")
   val target: IRI = createIRI(sh, "target")
   val targetClass: IRI = createIRI(sh, "targetClass")
   val targetNode: IRI = createIRI(sh, "targetNode")
   val targetObjectsOf: IRI = createIRI(sh, "targetObjectsOf")
   val targetSubjectsOf: IRI = createIRI(sh, "targetSubjectsOf")
+  val message: IRI = createIRI(sh, "message")
   val property: IRI = createIRI(sh, "property")
   val PropertyConstraint: IRI = createIRI(sh, "PropertyConstraint")
   val predicate: IRI = createIRI(sh, "predicate")
+  val severity: IRI = createIRI(sh, "severity")
 
 
   /*** Node kind vocabulary ***/
@@ -40,6 +42,9 @@ object SH {
 
   /*** Results vocabulary ***/
 
+  val ValidationReport: IRI = createIRI(sh, "ValidationReport")
+  val conforms: IRI = createIRI(sh, "conforms")
+  val result: IRI = createIRI(sh, "result")
   val AbstractResult: IRI = createIRI(sh, "AbstractResult")
   val ValidationResult: IRI = createIRI(sh, "ValidationResult")
   val Severity: IRI = createIRI(sh, "Severity")
@@ -48,8 +53,9 @@ object SH {
   val Warning: IRI = createIRI(sh, "Warning")
   val detail: IRI = createIRI(sh, "detail")
   val focusNode: IRI = createIRI(sh, "focusNode")
-  val message: IRI = createIRI(sh, "message")
-  val severity: IRI = createIRI(sh, "severity")
+  val resultMessage: IRI = createIRI(sh, "resultMessage")
+  val resultPath: IRI = createIRI(sh, "resultPath")
+  val resultSeverity: IRI = createIRI(sh, "resultSeverity")
   val sourceConstraint: IRI = createIRI(sh, "sourceConstraint")
   val sourceShape: IRI = createIRI(sh, "sourceShape")
   val sourceConstraintComponent: IRI = createIRI(sh, "sourceConstraintComponent")
@@ -72,6 +78,7 @@ object SH {
   val declare: IRI = createIRI(sh, "declare")
   val prefix: IRI = createIRI(sh, "prefix")
   val namespace: IRI = createIRI(sh, "namespace")
+  val shapesGraph: IRI = createIRI(sh, "shapesGraph")
 
 
   /*** Target vocabulary ***/
@@ -166,10 +173,10 @@ object SH {
   val StemConstraintComponent: IRI = createIRI(sh, "StemConstraintComponent")
   val stem: IRI = createIRI(sh, "stem")
   val QualifiedMaxCountConstraintComponent: IRI = createIRI(sh, "QualifiedMaxCountConstraintComponent")
-  val qualifiedMaxCount: IRI = createIRI(sh, "qualifiedMaxCount")
-  val qualifiedValueShape: IRI = createIRI(sh, "qualifiedValueShape")
   val QualifiedMinCountConstraintComponent: IRI = createIRI(sh, "QualifiedMinCountConstraintComponent")
+  val qualifiedMaxCount: IRI = createIRI(sh, "qualifiedMaxCount")
   val qualifiedMinCount: IRI = createIRI(sh, "qualifiedMinCount")
+  val qualifiedValueShape: IRI = createIRI(sh, "qualifiedValueShape")
   val ShapeConstraintComponent: IRI = createIRI(sh, "ShapeConstraintComponent")
   val shape: IRI = createIRI(sh, "shape")
   val UniqueLangConstraintComponent: IRI = createIRI(sh, "UniqueLangConstraintComponent")
@@ -199,7 +206,6 @@ object SH {
   val Function: IRI = createIRI(sh, "Function")
   val returnType: IRI = createIRI(sh, "returnType")
   val SPARQLFunction: IRI = createIRI(sh, "SPARQLFunction")
-  val hasShape: IRI = createIRI(sh, "hasShape")
 
 
   /*** Result annotations ***/

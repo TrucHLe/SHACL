@@ -1003,7 +1003,76 @@ class ShapeParserTest extends WordSpec {
       assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
       assert(shOneOrMorePathMustBeIRI == msg)
     }
-    "return violation if path is not sh:zeroOrMorePath or sh:oneOrMorePath" in {
+    "return violation if sh:zeroOrOnePath is rdf:nil or empty" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path (rdf:type [sh:zeroOrOnePath ()]) ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), Some(value), _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.zeroOrOnePath == path)
+      assert(RDF.nil == value)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shZeroOrOnePathMustNotBeRDFnil == msg)
+    }
+    "return an sh:zeroOrOnePath that is an IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path (rdf:type [sh:zeroOrOnePath ex:state]) ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Valid(ShSchema(shapes)) = Validator.getShSchema(shape)
+      val ShPathConstraint(path, _) = shapes.head.constraints.head
+      assert(ShZeroOrOnePath(exState) == path)
+    }
+    "return violation if sh:zeroOrOnePath is not an IRI" in {
+      val shape: Model = {
+        val snippet: String =
+          """
+          @prefix sh: <http://www.w3.org/ns/shacl#> .
+          @prefix ex: <http://www.example.org/ex#> .
+          ex:Shape
+            a sh:Shape ;
+            sh:property [
+              sh:path (rdf:type [sh:zeroOrOnePath (ex:Red ex:Green)]) ;
+            ]
+          .
+          """
+        val reader = new StringReader(snippet)
+        val shape = Rio.parse(reader, "", RDFFormat.TURTLE)
+        if (shape.size == 0) throw new IllegalArgumentException("Empty shape graph.")
+        shape
+      }
+      val Invalid(ShValidationResult(_, Some(path), _, _, conCom, _, Some(msg), _)) = Validator.getShSchema(shape)
+      assert(SH.zeroOrOnePath == path)
+      assert(ShNodeKindConstraintComponent(ShIRI) == conCom)
+      assert(shZeroOrOnePathMustBeIRI == msg)
+    }
+    "return violation if path is not sh:zeroOrMorePath or sh:oneOrMorePath or sh:zeroOrOnePath" in {
       val shape: Model = {
         val snippet: String =
           """
