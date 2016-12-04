@@ -17,19 +17,5 @@ ex:
 
 ex:OrganizationShape
   a sh:Shape ;
-  sh:targetNode ex:Organization ;
-  sh:property [
-    sh:predicate schema:logo ;
-    sh:class schema:ImageObject ;
-  ] ;
-  sh:property [
-    sh:predicate schema:telephone ;
-    sh:datatype xsd:string ;
-    sh:minCount 1 ;
-    sh:maxCount 1 ;
-  ] ;
-  sh:property [
-    sh:predicate schema:url ;
-    sh:nodeKind sh:IRI ;
-  ]
+  sh:property [] ;
 .

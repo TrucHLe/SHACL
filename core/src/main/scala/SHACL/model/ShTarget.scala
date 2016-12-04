@@ -1,5 +1,5 @@
 package SHACL
-package core
+package model
 
 import org.eclipse.rdf4j.model.{ IRI, Value }
 
